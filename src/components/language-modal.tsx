@@ -75,7 +75,7 @@ export function LanguageModal({ visible, onClose }: LanguageModalProps) {
                   ]}
                   onPress={() => handleSelect(item.code)}
                   accessibilityRole="radio"
-                  accessibilityState={{ selected: isSelected }}>
+                  aria-selected={isSelected}>
                   <View style={styles.languageTextContainer}>
                     <Text
                       style={[
@@ -127,10 +127,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderRadius: 20,
     padding: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 16,
+    boxShadow: '0px 4px 16px rgba(0,0,0,0.15)',
     elevation: 8,
   },
   modalContentHighContrast: {

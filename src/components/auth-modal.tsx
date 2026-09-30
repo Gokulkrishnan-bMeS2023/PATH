@@ -221,10 +221,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderRadius: 20,
     padding: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.15,
-    shadowRadius: 18,
+    boxShadow: '0px 6px 18px rgba(0,0,0,0.15)',
     elevation: 10,
   },
   modalCardHighContrast: {

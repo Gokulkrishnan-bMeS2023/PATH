@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { Platform } from 'react-native';
+import { AccessibilityInfo } from 'react-native';
 import * as Speech from 'expo-speech';
 
 export type TextScale = 'normal' | 'large' | 'xlarge';
@@ -16,6 +16,8 @@ export interface AccessibilityContextType {
   toggleReadAloud: (content?: string) => Promise<void>;
   language: SupportedLanguage;
   setLanguage: (lang: SupportedLanguage) => void;
+  /** OS-level "reduce motion" preference; decorative animations are skipped when true. */
+  reduceMotion: boolean;
 }
 
 const AccessibilityContext = createContext<AccessibilityContextType | undefined>(undefined);
@@ -39,6 +41,15 @@ export function AccessibilityProvider({ children }: { children: React.ReactNode 
   const [highContrast, setHighContrast] = useState<boolean>(false);
   const [language, setLanguage] = useState<SupportedLanguage>('en');
   const [isReading, setIsReading] = useState<boolean>(false);
+  const [reduceMotion, setReduceMotion] = useState<boolean>(false);
+
+  useEffect(() => {
+    AccessibilityInfo.isReduceMotionEnabled()
+      .then(setReduceMotion)
+      .catch(() => {});
+    const sub = AccessibilityInfo.addEventListener('reduceMotionChanged', setReduceMotion);
+    return () => sub.remove();
+  }, []);
 
   const scaleMultiplier = SCALE_MULTIPLIERS[textScale];
 
@@ -109,6 +120,7 @@ export function AccessibilityProvider({ children }: { children: React.ReactNode 
         toggleReadAloud,
         language,
         setLanguage,
+        reduceMotion,
       }}>
       {children}
     </AccessibilityContext.Provider>
