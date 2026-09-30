@@ -1,10 +1,11 @@
 import React from 'react';
 import { View, StyleSheet, Text } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import { useAccessibility } from '@/context/accessibility-context';
+import { translations } from '@/constants/translations';
 
 export function BrandIllustration() {
-  const { highContrast, scaleMultiplier } = useAccessibility();
+  const { highContrast, scaleMultiplier, language } = useAccessibility();
+  const t = translations[language] || translations.en;
 
   return (
     <View
@@ -13,50 +14,14 @@ export function BrandIllustration() {
         highContrast && styles.containerHighContrast,
       ]}
       accessibilityRole="image"
-      accessibilityLabel="Brand mark and illustration placeholder">
-      <View style={styles.iconRow}>
-        <View style={[styles.iconBubble, highContrast && styles.iconBubbleHighContrast]}>
-          <Ionicons
-            name="medkit-outline"
-            size={24 * scaleMultiplier}
-            color={highContrast ? '#000000' : '#0E6B60'}
-          />
-        </View>
-        <Ionicons
-          name="arrow-forward"
-          size={16 * scaleMultiplier}
-          color={highContrast ? '#000000' : '#94A3B8'}
-          style={styles.arrow}
-        />
-        <View style={[styles.iconBubble, highContrast && styles.iconBubbleHighContrast]}>
-          <Ionicons
-            name="navigate-outline"
-            size={24 * scaleMultiplier}
-            color={highContrast ? '#000000' : '#0E6B60'}
-          />
-        </View>
-        <Ionicons
-          name="arrow-forward"
-          size={16 * scaleMultiplier}
-          color={highContrast ? '#000000' : '#94A3B8'}
-          style={styles.arrow}
-        />
-        <View style={[styles.iconBubble, highContrast && styles.iconBubbleHighContrast]}>
-          <Ionicons
-            name="checkmark-circle-outline"
-            size={24 * scaleMultiplier}
-            color={highContrast ? '#000000' : '#0E6B60'}
-          />
-        </View>
-      </View>
-
+      accessibilityLabel={t.brandIllustrationText || 'Brand mark / illustration'}>
       <Text
         style={[
           styles.text,
           { fontSize: 13 * scaleMultiplier },
           highContrast && styles.textHighContrast,
         ]}>
-        Brand mark / illustration
+        {t.brandIllustrationText || 'Brand mark / illustration'}
       </Text>
     </View>
   );
@@ -81,28 +46,6 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderStyle: 'solid',
     backgroundColor: '#FFFFFF',
-  },
-  iconRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 14,
-    gap: 8,
-  },
-  arrow: {
-    marginHorizontal: 2,
-  },
-  iconBubble: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: '#E6F4F1',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  iconBubbleHighContrast: {
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1.5,
-    borderColor: '#000000',
   },
   text: {
     fontFamily: 'monospace',

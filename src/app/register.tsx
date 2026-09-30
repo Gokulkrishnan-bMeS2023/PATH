@@ -12,6 +12,11 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAccessibility } from '@/context/accessibility-context';
 
+const MAX_NAME_LENGTH = 50;
+const MAX_EMAIL_LENGTH = 254;
+const MAX_USERNAME_LENGTH = 20;
+const MAX_PASSWORD_LENGTH = 64;
+
 type UserRole = 'patient' | 'caregiver' | 'both';
 
 export default function RegisterScreen() {
@@ -28,16 +33,158 @@ export default function RegisterScreen() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [role, setRole] = useState<UserRole>('patient');
   const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);
+  const [summaryError, setSummaryError] = useState('');
+  const [fieldErrors, setFieldErrors] = useState<{
+    firstName?: string;
+    lastName?: string;
+    email?: string;
+    username?: string;
+    password?: string;
+    confirmPassword?: string;
+  }>({});
 
   const passwordsMismatch =
     (confirmPassword.length > 0 && password !== confirmPassword) ||
-    (hasAttemptedSubmit && password !== confirmPassword);
+    (hasAttemptedSubmit && Boolean(password) && password !== confirmPassword);
+
+  const validateFirstName = (value: string) => (!value.trim() ? 'First name is required.' : undefined);
+
+  const validateLastName = (value: string) => (!value.trim() ? 'Last name is required.' : undefined);
+
+  const validateEmail = (value: string) => {
+    const trimmedEmail = value.trim();
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!trimmedEmail) {
+      return 'Email address is required.';
+    }
+    if (!emailRegex.test(trimmedEmail)) {
+      return 'Please enter a valid email address.';
+    }
+    return undefined;
+  };
+
+  const validateUsername = (value: string) => {
+    const trimmedUsername = value.trim();
+    const usernameRegex = /^[a-zA-Z0-9_]{3,20}$/;
+    if (!trimmedUsername) {
+      return 'Username is required.';
+    }
+    if (trimmedUsername.length < 3) {
+      return 'Username must be at least 3 characters.';
+    }
+    if (!usernameRegex.test(trimmedUsername)) {
+      return 'Only letters, numbers, and underscores are allowed.';
+    }
+    return undefined;
+  };
+
+  const validatePassword = (value: string) => {
+    if (!value) {
+      return 'Password is required.';
+    }
+    if (value.length < 8) {
+      return 'Password must be at least 8 characters.';
+    }
+    if (!/[a-zA-Z]/.test(value) || !/[0-9]/.test(value)) {
+      return 'Must contain at least one letter and one number.';
+    }
+    return undefined;
+  };
+
+  const validateConfirmPassword = (value: string, passwordValue: string) => {
+    if (!value) {
+      return 'Confirm password is required.';
+    }
+    if (passwordValue !== value) {
+      return 'Passwords do not match.';
+    }
+    return undefined;
+  };
+
+  const validate = () => {
+    const errors: {
+      firstName?: string;
+      lastName?: string;
+      email?: string;
+      username?: string;
+      password?: string;
+      confirmPassword?: string;
+    } = {};
+
+    const firstNameError = validateFirstName(firstName);
+    const lastNameError = validateLastName(lastName);
+    const emailError = validateEmail(email);
+    const usernameError = validateUsername(username);
+    const passwordError = validatePassword(password);
+    const confirmPasswordError = validateConfirmPassword(confirmPassword, password);
+
+    if (firstNameError) errors.firstName = firstNameError;
+    if (lastNameError) errors.lastName = lastNameError;
+    if (emailError) errors.email = emailError;
+    if (usernameError) errors.username = usernameError;
+    if (passwordError) errors.password = passwordError;
+    if (confirmPasswordError) errors.confirmPassword = confirmPasswordError;
+
+    return errors;
+  };
+
+  const handleFirstNameChange = (text: string) => {
+    const sanitized = text.slice(0, MAX_NAME_LENGTH).replace(/[^a-zA-Z '-]/g, '');
+    setFirstName(sanitized);
+    setFieldErrors((prev) => ({ ...prev, firstName: validateFirstName(sanitized) }));
+    if (summaryError) setSummaryError('');
+  };
+
+  const handleLastNameChange = (text: string) => {
+    const sanitized = text.slice(0, MAX_NAME_LENGTH).replace(/[^a-zA-Z '-]/g, '');
+    setLastName(sanitized);
+    setFieldErrors((prev) => ({ ...prev, lastName: validateLastName(sanitized) }));
+    if (summaryError) setSummaryError('');
+  };
+
+  const handleEmailChange = (text: string) => {
+    const sanitized = text.slice(0, MAX_EMAIL_LENGTH).replace(/[^a-zA-Z0-9@._+-]/g, '');
+    setEmail(sanitized);
+    setFieldErrors((prev) => ({ ...prev, email: validateEmail(sanitized) }));
+    if (summaryError) setSummaryError('');
+  };
+
+  const handleUsernameChange = (text: string) => {
+    const sanitized = text.slice(0, MAX_USERNAME_LENGTH).replace(/[^a-zA-Z0-9_]/g, '');
+    setUsername(sanitized);
+    setFieldErrors((prev) => ({ ...prev, username: validateUsername(sanitized) }));
+    if (summaryError) setSummaryError('');
+  };
+
+  const handlePasswordChange = (text: string) => {
+    const sanitized = text.slice(0, MAX_PASSWORD_LENGTH);
+    setPassword(sanitized);
+    setFieldErrors((prev) => ({
+      ...prev,
+      password: validatePassword(sanitized),
+      confirmPassword: confirmPassword ? validateConfirmPassword(confirmPassword, sanitized) : prev.confirmPassword,
+    }));
+    if (summaryError) setSummaryError('');
+  };
+
+  const handleConfirmPasswordChange = (text: string) => {
+    const sanitized = text.slice(0, MAX_PASSWORD_LENGTH);
+    setConfirmPassword(sanitized);
+    setFieldErrors((prev) => ({ ...prev, confirmPassword: validateConfirmPassword(sanitized, password) }));
+    if (summaryError) setSummaryError('');
+  };
 
   const handleCreateAccount = () => {
     setHasAttemptedSubmit(true);
-    if (!password || password !== confirmPassword) {
+    const errors = validate();
+    setFieldErrors(errors);
+
+    if (Object.keys(errors).length > 0) {
+      setSummaryError('Please correct the highlighted fields below.');
       return;
     }
+
+    setSummaryError('');
     // Navigate directly to the Problem Selection step
     router.push('/problem-selection');
   };
@@ -118,6 +265,29 @@ export default function RegisterScreen() {
             Create your account
           </Text>
 
+          {summaryError ? (
+            <View
+              style={[
+                styles.summaryErrorBanner,
+                highContrast && styles.summaryErrorBannerHighContrast,
+              ]}
+              accessibilityRole="alert">
+              <Ionicons
+                name="alert-circle"
+                size={16 * scaleMultiplier}
+                color={highContrast ? '#000000' : '#B91C1C'}
+              />
+              <Text
+                style={[
+                  styles.summaryErrorText,
+                  { fontSize: 13 * scaleMultiplier },
+                  highContrast && styles.summaryErrorTextHighContrast,
+                ]}>
+                {summaryError}
+              </Text>
+            </View>
+          ) : null}
+
           {/* First name & Last name row */}
           <View style={styles.row}>
             <View style={[styles.fieldGroup, styles.halfCol]}>
@@ -127,20 +297,42 @@ export default function RegisterScreen() {
                   { fontSize: 13.5 * scaleMultiplier },
                   highContrast && styles.textHighContrast,
                 ]}>
-                First name
+                First name<Text style={styles.requiredMark}> *</Text>
               </Text>
               <TextInput
                 style={[
                   styles.input,
                   { fontSize: 15 * scaleMultiplier },
+                  Boolean(fieldErrors.firstName) && styles.inputError,
                   highContrast && styles.inputHighContrast,
+                  highContrast && Boolean(fieldErrors.firstName) && styles.inputErrorHighContrast,
                 ]}
                 placeholder="First name"
                 placeholderTextColor="#94A3B8"
                 autoCapitalize="words"
+                maxLength={MAX_NAME_LENGTH}
                 value={firstName}
-                onChangeText={setFirstName}
+                onChangeText={handleFirstNameChange}
+                aria-invalid={Boolean(fieldErrors.firstName)}
+                aria-required
               />
+              {fieldErrors.firstName ? (
+                <View style={styles.fieldErrorRow} accessibilityRole="alert">
+                  <Ionicons
+                    name="alert-circle"
+                    size={13 * scaleMultiplier}
+                    color={highContrast ? '#000000' : '#B91C1C'}
+                  />
+                  <Text
+                    style={[
+                      styles.fieldErrorText,
+                      { fontSize: 12 * scaleMultiplier },
+                      highContrast && styles.fieldErrorTextHighContrast,
+                    ]}>
+                    {fieldErrors.firstName}
+                  </Text>
+                </View>
+              ) : null}
             </View>
 
             <View style={[styles.fieldGroup, styles.halfCol]}>
@@ -150,20 +342,42 @@ export default function RegisterScreen() {
                   { fontSize: 13.5 * scaleMultiplier },
                   highContrast && styles.textHighContrast,
                 ]}>
-                Last name
+                Last name<Text style={styles.requiredMark}> *</Text>
               </Text>
               <TextInput
                 style={[
                   styles.input,
                   { fontSize: 15 * scaleMultiplier },
+                  Boolean(fieldErrors.lastName) && styles.inputError,
                   highContrast && styles.inputHighContrast,
+                  highContrast && Boolean(fieldErrors.lastName) && styles.inputErrorHighContrast,
                 ]}
                 placeholder="Last name"
                 placeholderTextColor="#94A3B8"
                 autoCapitalize="words"
+                maxLength={MAX_NAME_LENGTH}
                 value={lastName}
-                onChangeText={setLastName}
+                onChangeText={handleLastNameChange}
+                aria-invalid={Boolean(fieldErrors.lastName)}
+                aria-required
               />
+              {fieldErrors.lastName ? (
+                <View style={styles.fieldErrorRow} accessibilityRole="alert">
+                  <Ionicons
+                    name="alert-circle"
+                    size={13 * scaleMultiplier}
+                    color={highContrast ? '#000000' : '#B91C1C'}
+                  />
+                  <Text
+                    style={[
+                      styles.fieldErrorText,
+                      { fontSize: 12 * scaleMultiplier },
+                      highContrast && styles.fieldErrorTextHighContrast,
+                    ]}>
+                    {fieldErrors.lastName}
+                  </Text>
+                </View>
+              ) : null}
             </View>
           </View>
 
@@ -175,21 +389,44 @@ export default function RegisterScreen() {
                 { fontSize: 13.5 * scaleMultiplier },
                 highContrast && styles.textHighContrast,
               ]}>
-              Email address
+              Email address<Text style={styles.requiredMark}> *</Text>
             </Text>
             <TextInput
               style={[
                 styles.input,
                 { fontSize: 15 * scaleMultiplier },
+                Boolean(fieldErrors.email) && styles.inputError,
                 highContrast && styles.inputHighContrast,
+                highContrast && Boolean(fieldErrors.email) && styles.inputErrorHighContrast,
               ]}
               placeholder="you@example.com"
               placeholderTextColor="#94A3B8"
               keyboardType="email-address"
               autoCapitalize="none"
+              autoCorrect={false}
+              maxLength={MAX_EMAIL_LENGTH}
               value={email}
-              onChangeText={setEmail}
+              onChangeText={handleEmailChange}
+              aria-invalid={Boolean(fieldErrors.email)}
+              aria-required
             />
+            {fieldErrors.email ? (
+              <View style={styles.fieldErrorRow} accessibilityRole="alert">
+                <Ionicons
+                  name="alert-circle"
+                  size={13 * scaleMultiplier}
+                  color={highContrast ? '#000000' : '#B91C1C'}
+                />
+                <Text
+                  style={[
+                    styles.fieldErrorText,
+                    { fontSize: 12 * scaleMultiplier },
+                    highContrast && styles.fieldErrorTextHighContrast,
+                  ]}>
+                  {fieldErrors.email}
+                </Text>
+              </View>
+            ) : null}
           </View>
 
           {/* Username */}
@@ -200,20 +437,43 @@ export default function RegisterScreen() {
                 { fontSize: 13.5 * scaleMultiplier },
                 highContrast && styles.textHighContrast,
               ]}>
-              Username
+              Username<Text style={styles.requiredMark}> *</Text>
             </Text>
             <TextInput
               style={[
                 styles.input,
                 { fontSize: 15 * scaleMultiplier },
+                Boolean(fieldErrors.username) && styles.inputError,
                 highContrast && styles.inputHighContrast,
+                highContrast && Boolean(fieldErrors.username) && styles.inputErrorHighContrast,
               ]}
               placeholder="Choose a username"
               placeholderTextColor="#94A3B8"
               autoCapitalize="none"
+              autoCorrect={false}
+              maxLength={MAX_USERNAME_LENGTH}
               value={username}
-              onChangeText={setUsername}
+              onChangeText={handleUsernameChange}
+              aria-invalid={Boolean(fieldErrors.username)}
+              aria-required
             />
+            {fieldErrors.username ? (
+              <View style={styles.fieldErrorRow} accessibilityRole="alert">
+                <Ionicons
+                  name="alert-circle"
+                  size={13 * scaleMultiplier}
+                  color={highContrast ? '#000000' : '#B91C1C'}
+                />
+                <Text
+                  style={[
+                    styles.fieldErrorText,
+                    { fontSize: 12 * scaleMultiplier },
+                    highContrast && styles.fieldErrorTextHighContrast,
+                  ]}>
+                  {fieldErrors.username}
+                </Text>
+              </View>
+            ) : null}
           </View>
 
           {/* Password */}
@@ -224,20 +484,25 @@ export default function RegisterScreen() {
                 { fontSize: 13.5 * scaleMultiplier },
                 highContrast && styles.textHighContrast,
               ]}>
-              Password
+              Password<Text style={styles.requiredMark}> *</Text>
             </Text>
             <View style={styles.passwordRow}>
               <TextInput
                 style={[
                   styles.passwordInput,
                   { fontSize: 15 * scaleMultiplier },
+                  Boolean(fieldErrors.password) && styles.inputError,
                   highContrast && styles.inputHighContrast,
+                  highContrast && Boolean(fieldErrors.password) && styles.inputErrorHighContrast,
                 ]}
                 placeholder="Password"
                 placeholderTextColor="#94A3B8"
                 secureTextEntry={!showPassword}
+                maxLength={MAX_PASSWORD_LENGTH}
                 value={password}
-                onChangeText={setPassword}
+                onChangeText={handlePasswordChange}
+                aria-invalid={Boolean(fieldErrors.password)}
+                aria-required
               />
               <TouchableOpacity
                 style={[
@@ -265,6 +530,23 @@ export default function RegisterScreen() {
               ]}>
               At least 8 characters · one letter and one number
             </Text>
+            {fieldErrors.password ? (
+              <View style={styles.fieldErrorRow} accessibilityRole="alert">
+                <Ionicons
+                  name="alert-circle"
+                  size={13 * scaleMultiplier}
+                  color={highContrast ? '#000000' : '#B91C1C'}
+                />
+                <Text
+                  style={[
+                    styles.fieldErrorText,
+                    { fontSize: 12 * scaleMultiplier },
+                    highContrast && styles.fieldErrorTextHighContrast,
+                  ]}>
+                  {fieldErrors.password}
+                </Text>
+              </View>
+            ) : null}
           </View>
 
           {/* Confirm password */}
@@ -275,20 +557,27 @@ export default function RegisterScreen() {
                 { fontSize: 13.5 * scaleMultiplier },
                 highContrast && styles.textHighContrast,
               ]}>
-              Confirm password
+              Confirm password<Text style={styles.requiredMark}> *</Text>
             </Text>
             <View style={styles.passwordRow}>
               <TextInput
                 style={[
                   styles.passwordInput,
                   { fontSize: 15 * scaleMultiplier },
+                  (Boolean(fieldErrors.confirmPassword) || passwordsMismatch) && styles.inputError,
                   highContrast && styles.inputHighContrast,
+                  highContrast &&
+                    (Boolean(fieldErrors.confirmPassword) || passwordsMismatch) &&
+                    styles.inputErrorHighContrast,
                 ]}
                 placeholder="Re-enter password"
                 placeholderTextColor="#94A3B8"
                 secureTextEntry={!showConfirmPassword}
+                maxLength={MAX_PASSWORD_LENGTH}
                 value={confirmPassword}
-                onChangeText={setConfirmPassword}
+                onChangeText={handleConfirmPasswordChange}
+                aria-invalid={Boolean(fieldErrors.confirmPassword) || passwordsMismatch}
+                aria-required
               />
               <TouchableOpacity
                 style={[
@@ -308,15 +597,43 @@ export default function RegisterScreen() {
                 </Text>
               </TouchableOpacity>
             </View>
+            {fieldErrors.confirmPassword && !passwordsMismatch ? (
+              <View style={styles.fieldErrorRow} accessibilityRole="alert">
+                <Ionicons
+                  name="alert-circle"
+                  size={13 * scaleMultiplier}
+                  color={highContrast ? '#000000' : '#B91C1C'}
+                />
+                <Text
+                  style={[
+                    styles.fieldErrorText,
+                    { fontSize: 12 * scaleMultiplier },
+                    highContrast && styles.fieldErrorTextHighContrast,
+                  ]}>
+                  {fieldErrors.confirmPassword}
+                </Text>
+              </View>
+            ) : null}
           </View>
 
           {/* Validation Alert (as shown in wireframe) */}
           {passwordsMismatch ? (
-            <View style={styles.warningBanner}>
+            <View
+              style={[
+                styles.warningBanner,
+                highContrast && styles.warningBannerHighContrast,
+              ]}
+              accessibilityRole="alert">
+              <Ionicons
+                name="alert-circle"
+                size={16 * scaleMultiplier}
+                color={highContrast ? '#000000' : '#B45309'}
+              />
               <Text
                 style={[
                   styles.warningText,
                   { fontSize: 13.5 * scaleMultiplier },
+                  highContrast && styles.warningTextHighContrast,
                 ]}>
                 Passwords do not match.
               </Text>
@@ -560,6 +877,32 @@ const styles = StyleSheet.create({
     color: '#000000',
     fontWeight: '900',
   },
+  summaryErrorBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FEE2E2',
+    borderWidth: 1,
+    borderColor: '#F87171',
+    borderRadius: 10,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    marginBottom: 18,
+    gap: 8,
+  },
+  summaryErrorBannerHighContrast: {
+    backgroundColor: '#FFFFFF',
+    borderWidth: 2,
+    borderColor: '#000000',
+  },
+  summaryErrorText: {
+    color: '#B91C1C',
+    fontWeight: '600',
+    flex: 1,
+  },
+  summaryErrorTextHighContrast: {
+    color: '#000000',
+    fontWeight: '700',
+  },
   row: {
     flexDirection: 'row',
     gap: 12,
@@ -575,6 +918,10 @@ const styles = StyleSheet.create({
     color: '#334155',
     marginBottom: 6,
   },
+  requiredMark: {
+    color: '#DC2626',
+    fontWeight: '700',
+  },
   input: {
     borderWidth: 1,
     borderColor: '#94A3B8',
@@ -584,10 +931,33 @@ const styles = StyleSheet.create({
     color: '#0F172A',
     backgroundColor: '#FFFFFF',
   },
+  inputError: {
+    borderColor: '#DC2626',
+    backgroundColor: '#FEF2F2',
+  },
   inputHighContrast: {
     borderWidth: 2,
     borderColor: '#000000',
     color: '#000000',
+  },
+  inputErrorHighContrast: {
+    borderWidth: 2.5,
+    borderColor: '#000000',
+    backgroundColor: '#FFFFFF',
+  },
+  fieldErrorRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    marginTop: 6,
+  },
+  fieldErrorText: {
+    color: '#B91C1C',
+    fontWeight: '600',
+  },
+  fieldErrorTextHighContrast: {
+    color: '#000000',
+    fontWeight: '700',
   },
   passwordRow: {
     flexDirection: 'row',
@@ -627,6 +997,8 @@ const styles = StyleSheet.create({
     marginTop: 6,
   },
   warningBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: '#FEF3C7',
     borderWidth: 1,
     borderColor: '#F59E0B',
@@ -634,10 +1006,21 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 14,
     marginBottom: 18,
+    gap: 8,
+  },
+  warningBannerHighContrast: {
+    backgroundColor: '#FFFFFF',
+    borderWidth: 2,
+    borderColor: '#000000',
   },
   warningText: {
     color: '#78350F',
     fontWeight: '600',
+    flex: 1,
+  },
+  warningTextHighContrast: {
+    color: '#000000',
+    fontWeight: '700',
   },
   radioSection: {
     marginTop: 4,

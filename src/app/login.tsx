@@ -13,6 +13,9 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAccessibility } from '@/context/accessibility-context';
 
+const MAX_USERNAME_OR_EMAIL_LENGTH = 254;
+const MAX_PASSWORD_LENGTH = 64;
+
 export default function LoginScreen() {
   const router = useRouter();
   const { highContrast, scaleMultiplier } = useAccessibility();
@@ -22,12 +25,71 @@ export default function LoginScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  const [fieldErrors, setFieldErrors] = useState<{
+    usernameOrEmail?: string;
+    password?: string;
+  }>({});
+
+  const validateUsernameOrEmail = (value: string) => {
+    const trimmedUser = value.trim();
+
+    if (!trimmedUser) {
+      return 'Username or email is required.';
+    }
+    if (trimmedUser.includes('@')) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(trimmedUser)) {
+        return 'Please enter a valid email address.';
+      }
+    } else if (trimmedUser.length < 3) {
+      return 'Username must be at least 3 characters.';
+    }
+    return undefined;
+  };
+
+  const validatePassword = (value: string) => {
+    if (!value) {
+      return 'Password is required.';
+    }
+    return undefined;
+  };
+
+  const validate = () => {
+    const errors: { usernameOrEmail?: string; password?: string } = {};
+    const usernameOrEmailError = validateUsernameOrEmail(usernameOrEmail);
+    const passwordError = validatePassword(password);
+    if (usernameOrEmailError) errors.usernameOrEmail = usernameOrEmailError;
+    if (passwordError) errors.password = passwordError;
+    return errors;
+  };
+
+  const handleUsernameOrEmailChange = (text: string) => {
+    const sanitized = text.slice(0, MAX_USERNAME_OR_EMAIL_LENGTH).replace(/[^a-zA-Z0-9@._+-]/g, '');
+    setUsernameOrEmail(sanitized);
+    setFieldErrors((prev) => ({ ...prev, usernameOrEmail: validateUsernameOrEmail(sanitized) }));
+    if (errorMessage) {
+      setErrorMessage('');
+    }
+  };
+
+  const handlePasswordChange = (text: string) => {
+    const sanitized = text.slice(0, MAX_PASSWORD_LENGTH);
+    setPassword(sanitized);
+    setFieldErrors((prev) => ({ ...prev, password: validatePassword(sanitized) }));
+    if (errorMessage) {
+      setErrorMessage('');
+    }
+  };
 
   const handleLogin = () => {
-    if (!usernameOrEmail.trim() || !password.trim()) {
-      setErrorMessage('Please enter your username/email and password.');
+    const errors = validate();
+    setFieldErrors(errors);
+
+    if (Object.keys(errors).length > 0) {
+      setErrorMessage('Please correct the highlighted fields below.');
       return;
     }
+
     setErrorMessage('');
     // Successful login navigates to the Problem Selection screen
     router.push('/problem-selection');
@@ -114,9 +176,25 @@ export default function LoginScreen() {
           </Text>
 
           {errorMessage ? (
-            <View style={styles.errorBanner}>
-              <Ionicons name="alert-circle" size={16} color="#B91C1C" />
-              <Text style={styles.errorText}>{errorMessage}</Text>
+            <View
+              style={[
+                styles.errorBanner,
+                highContrast && styles.errorBannerHighContrast,
+              ]}
+              accessibilityRole="alert">
+              <Ionicons
+                name="alert-circle"
+                size={16 * scaleMultiplier}
+                color={highContrast ? '#000000' : '#B91C1C'}
+              />
+              <Text
+                style={[
+                  styles.errorText,
+                  { fontSize: 13 * scaleMultiplier },
+                  highContrast && styles.errorTextHighContrast,
+                ]}>
+                {errorMessage}
+              </Text>
             </View>
           ) : null}
 
@@ -128,21 +206,43 @@ export default function LoginScreen() {
                 { fontSize: 14 * scaleMultiplier },
                 highContrast && styles.textHighContrast,
               ]}>
-              Username or email
+              Username or email<Text style={styles.requiredMark}> *</Text>
             </Text>
             <TextInput
               style={[
                 styles.input,
                 { fontSize: 15 * scaleMultiplier },
+                Boolean(fieldErrors.usernameOrEmail) && styles.inputError,
                 highContrast && styles.inputHighContrast,
+                highContrast && Boolean(fieldErrors.usernameOrEmail) && styles.inputErrorHighContrast,
               ]}
               placeholder="Username or email"
               placeholderTextColor="#94A3B8"
               autoCapitalize="none"
               autoCorrect={false}
+              maxLength={MAX_USERNAME_OR_EMAIL_LENGTH}
               value={usernameOrEmail}
-              onChangeText={setUsernameOrEmail}
+              onChangeText={handleUsernameOrEmailChange}
+              aria-invalid={Boolean(fieldErrors.usernameOrEmail)}
+              aria-required
             />
+            {fieldErrors.usernameOrEmail ? (
+              <View style={styles.fieldErrorRow} accessibilityRole="alert">
+                <Ionicons
+                  name="alert-circle"
+                  size={14 * scaleMultiplier}
+                  color={highContrast ? '#000000' : '#B91C1C'}
+                />
+                <Text
+                  style={[
+                    styles.fieldErrorText,
+                    { fontSize: 12.5 * scaleMultiplier },
+                    highContrast && styles.fieldErrorTextHighContrast,
+                  ]}>
+                  {fieldErrors.usernameOrEmail}
+                </Text>
+              </View>
+            ) : null}
           </View>
 
           {/* Field: Password with Show button */}
@@ -153,20 +253,25 @@ export default function LoginScreen() {
                 { fontSize: 14 * scaleMultiplier },
                 highContrast && styles.textHighContrast,
               ]}>
-              Password
+              Password<Text style={styles.requiredMark}> *</Text>
             </Text>
             <View style={styles.passwordRow}>
               <TextInput
                 style={[
                   styles.passwordInput,
                   { fontSize: 15 * scaleMultiplier },
+                  Boolean(fieldErrors.password) && styles.inputError,
                   highContrast && styles.inputHighContrast,
+                  highContrast && Boolean(fieldErrors.password) && styles.inputErrorHighContrast,
                 ]}
                 placeholder="Password"
                 placeholderTextColor="#94A3B8"
                 secureTextEntry={!showPassword}
+                maxLength={MAX_PASSWORD_LENGTH}
                 value={password}
-                onChangeText={setPassword}
+                onChangeText={handlePasswordChange}
+                aria-invalid={Boolean(fieldErrors.password)}
+                aria-required
               />
               <TouchableOpacity
                 style={[
@@ -186,6 +291,23 @@ export default function LoginScreen() {
                 </Text>
               </TouchableOpacity>
             </View>
+            {fieldErrors.password ? (
+              <View style={styles.fieldErrorRow} accessibilityRole="alert">
+                <Ionicons
+                  name="alert-circle"
+                  size={14 * scaleMultiplier}
+                  color={highContrast ? '#000000' : '#B91C1C'}
+                />
+                <Text
+                  style={[
+                    styles.fieldErrorText,
+                    { fontSize: 12.5 * scaleMultiplier },
+                    highContrast && styles.fieldErrorTextHighContrast,
+                  ]}>
+                  {fieldErrors.password}
+                </Text>
+              </View>
+            ) : null}
           </View>
 
           {/* Remember me & Forgot password row */}
@@ -396,12 +518,22 @@ const styles = StyleSheet.create({
     padding: 10,
     borderRadius: 8,
     marginBottom: 16,
-    gap: 6,
+    gap: 8,
+  },
+  errorBannerHighContrast: {
+    backgroundColor: '#FFFFFF',
+    borderWidth: 2,
+    borderColor: '#000000',
   },
   errorText: {
     color: '#B91C1C',
     fontSize: 13,
     fontWeight: '600',
+    flex: 1,
+  },
+  errorTextHighContrast: {
+    color: '#000000',
+    fontWeight: '700',
   },
   fieldGroup: {
     marginBottom: 18,
@@ -410,6 +542,10 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#334155',
     marginBottom: 8,
+  },
+  requiredMark: {
+    color: '#DC2626',
+    fontWeight: '700',
   },
   input: {
     borderWidth: 1,
@@ -420,10 +556,33 @@ const styles = StyleSheet.create({
     color: '#0F172A',
     backgroundColor: '#FFFFFF',
   },
+  inputError: {
+    borderColor: '#DC2626',
+    backgroundColor: '#FEF2F2',
+  },
   inputHighContrast: {
     borderWidth: 2,
     borderColor: '#000000',
     color: '#000000',
+  },
+  inputErrorHighContrast: {
+    borderWidth: 2.5,
+    borderColor: '#000000',
+    backgroundColor: '#FFFFFF',
+  },
+  fieldErrorRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 6,
+  },
+  fieldErrorText: {
+    color: '#B91C1C',
+    fontWeight: '600',
+  },
+  fieldErrorTextHighContrast: {
+    color: '#000000',
+    fontWeight: '700',
   },
   passwordRow: {
     flexDirection: 'row',
