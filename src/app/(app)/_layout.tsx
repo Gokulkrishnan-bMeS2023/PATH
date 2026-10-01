@@ -1,24 +1,31 @@
 import React from 'react';
-import { Redirect, Stack } from 'expo-router';
+import { useWindowDimensions } from 'react-native';
+import { Redirect } from 'expo-router';
+import { Drawer } from 'expo-router/drawer';
+import { DrawerMenuContent } from '@/components/ui/drawer-menu-content';
 import { useAuth } from '@/context/auth-context';
-import { lightPalette } from '@/theme/tokens';
 
-/** Everything in this group requires a signed-in user. */
+const PANEL_WIDTH_RATIO = 0.84;
+const MAX_PANEL_WIDTH = 340;
+
+/** Everything in this group requires a signed-in user. The hamburger "Menu" opens this as a real drawer. */
 export default function AppLayout() {
+  const { width } = useWindowDimensions();
   const { user, isLoading } = useAuth();
   if (isLoading) return null;
   if (!user) return <Redirect href="/welcome" />;
 
   return (
-    <Stack
+    <Drawer
       screenOptions={{
         headerShown: false,
-        contentStyle: { backgroundColor: lightPalette.bg },
-        animation: 'slide_from_right',
-      }}>
-      <Stack.Screen name="menu" options={{ title: 'Menu', animation: 'slide_from_bottom' }} />
-      <Stack.Screen name="profile" options={{ title: 'My Profile' }} />
-      <Stack.Screen name="logout" options={{ title: 'Log Out', animation: 'fade' }} />
-    </Stack>
+        drawerPosition: 'right',
+        drawerType: 'front',
+        overlayColor: 'rgba(10,16,24,0.5)',
+        drawerStyle: { width: Math.min(width * PANEL_WIDTH_RATIO, MAX_PANEL_WIDTH) },
+      }}
+      drawerContent={(props) => <DrawerMenuContent {...props} />}>
+      <Drawer.Screen name="(stack)" options={{ title: 'PATH' }} />
+    </Drawer>
   );
 }

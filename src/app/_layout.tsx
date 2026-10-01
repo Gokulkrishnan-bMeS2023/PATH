@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
 import { Platform } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
@@ -90,18 +91,20 @@ function RootNavigator() {
 
 export default function RootLayout() {
   return (
-    <SafeAreaProvider>
-      <DatabaseProvider>
-        <AccessibilityProvider>
-          <AuthProvider>
-            <CaseProvider>
-              <InterviewProvider>
-                <RootNavigator />
-              </InterviewProvider>
-            </CaseProvider>
-          </AuthProvider>
-        </AccessibilityProvider>
-      </DatabaseProvider>
-    </SafeAreaProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <SafeAreaProvider>
+        <DatabaseProvider>
+          <AccessibilityProvider>
+            <AuthProvider>
+              <CaseProvider>
+                <InterviewProvider>
+                  <RootNavigator />
+                </InterviewProvider>
+              </CaseProvider>
+            </AuthProvider>
+          </AccessibilityProvider>
+        </DatabaseProvider>
+      </SafeAreaProvider>
+    </GestureHandlerRootView>
   );
 }

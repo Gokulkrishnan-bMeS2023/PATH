@@ -52,7 +52,7 @@ export default function DocumentsScreen() {
       {error ? <Warn>{error}</Warn> : null}
       <Row>
         <Button variant="primary" icon="upload" label="Upload Document" loading={busy} onPress={upload} />
-        <Button label="Skip" onPress={() => router.back()} />
+        <Button label="Skip" onPress={() => (router.canGoBack() ? router.back() : router.replace('/plan'))} />
       </Row>
 
       {documents.map((d) => (

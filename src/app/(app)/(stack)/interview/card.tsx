@@ -1,5 +1,5 @@
-import React from 'react';
-import { View } from 'react-native';
+import React, { useState } from 'react';
+import { Text, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Screen } from '@/components/ui/screen';
 import { AppText } from '@/components/ui/text';
@@ -13,14 +13,28 @@ import { useTokens } from '@/theme/use-tokens';
 const digitsAndDashes = (v: string) => v.replace(/[^0-9()\-\s+]/g, '');
 const alnum = (v: string) => v.replace(/[^a-zA-Z0-9-]/g, '');
 
+type Errors = Partial<Record<'medicationName' | 'supplyLeft', string>>;
+
 /** 04B · Insurance card & medication (step 2 of 3) */
 export default function InterviewCard() {
   const { openCard } = useLocalSearchParams<{ openCard?: string }>();
   const { draft, update, updateCard } = useInterview();
   const { p } = useTokens();
+  const [errors, setErrors] = useState<Errors>({});
   const c = draft.card;
   const hasCard = Object.values(c).some((v) => v.trim());
   const lowSupply = !!draft.supplyLeft && LOW_SUPPLY.has(draft.supplyLeft);
+  const medicationNameRequired = !draft.medicationUnknown && !draft.medicationLater;
+
+  const next = () => {
+    const nextErrors: Errors = {
+      medicationName: medicationNameRequired && !draft.medicationName.trim() ? 'Please enter the medication name.' : undefined,
+      supplyLeft: draft.supplyLeft ? undefined : 'Please choose how much medication is left.',
+    };
+    setErrors(nextErrors);
+    if (Object.values(nextErrors).some(Boolean)) return;
+    router.push('/interview/details');
+  };
 
   return (
     <Screen
@@ -28,8 +42,12 @@ export default function InterviewCard() {
       right="Step 2 of 3"
       bottom={
         <Row>
-          <Button icon="arrow-left" label="Back" onPress={() => router.back()} />
-          <Button variant="primary" label="Next" trailingIcon="arrow-right" onPress={() => router.push('/interview/details')} />
+          <Button
+            icon="arrow-left"
+            label="Back"
+            onPress={() => (router.canGoBack() ? router.back() : router.replace('/interview/who'))}
+          />
+          <Button variant="primary" label="Next" trailingIcon="arrow-right" onPress={next} />
         </Row>
       }>
       <StepBar total={3} current={2} />
@@ -68,21 +86,32 @@ export default function InterviewCard() {
       <Field
         label="Medication name"
         placeholder="Medication name"
+        required={medicationNameRequired}
         maxLength={80}
-        editable={!draft.medicationUnknown}
+        editable={medicationNameRequired}
         value={draft.medicationUnknown ? '' : draft.medicationName}
-        onChangeText={(v) => update({ medicationName: v })}
+        onChangeText={(v) => {
+          update({ medicationName: v });
+          setErrors((e) => ({ ...e, medicationName: undefined }));
+        }}
+        error={errors.medicationName}
       />
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', columnGap: 20 }}>
         <Checkbox
           label="I don't know"
           checked={draft.medicationUnknown}
-          onChange={(v) => update({ medicationUnknown: v, medicationLater: v ? false : draft.medicationLater })}
+          onChange={(v) => {
+            update({ medicationUnknown: v, medicationLater: v ? false : draft.medicationLater });
+            setErrors((e) => ({ ...e, medicationName: undefined }));
+          }}
         />
         <Checkbox
           label="I'll add it later"
           checked={draft.medicationLater}
-          onChange={(v) => update({ medicationLater: v, medicationUnknown: v ? false : draft.medicationUnknown })}
+          onChange={(v) => {
+            update({ medicationLater: v, medicationUnknown: v ? false : draft.medicationUnknown });
+            setErrors((e) => ({ ...e, medicationName: undefined }));
+          }}
         />
       </View>
       <Field
@@ -100,8 +129,20 @@ export default function InterviewCard() {
         onChangeText={(v) => update({ pharmacyName: v })}
       />
 
-      <AppText variant="h2">How much medication do you have left?</AppText>
-      <ChipSelect label="Medication left" options={SUPPLY_LEFT} value={draft.supplyLeft} onChange={(v) => update({ supplyLeft: v })} />
+      <AppText variant="h2">
+        How much medication do you have left?
+        <Text style={{ color: p.danger }}> *</Text>
+      </AppText>
+      <ChipSelect
+        label="Medication left"
+        options={SUPPLY_LEFT}
+        value={draft.supplyLeft}
+        onChange={(v) => {
+          update({ supplyLeft: v });
+          setErrors((e) => ({ ...e, supplyLeft: undefined }));
+        }}
+        error={errors.supplyLeft}
+      />
 
       <Warn>
         <AppText color={p.sunInk}>

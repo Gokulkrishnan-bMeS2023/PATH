@@ -177,23 +177,40 @@ export function ChipSelect<T extends string>({
   value,
   onChange,
   label,
+  error,
 }: {
   options: readonly ChoiceOption<T>[];
   value: T | null | undefined;
   onChange: (v: T | null) => void;
   label?: string;
+  error?: string;
 }) {
+  const { p } = useTokens();
   return (
-    <View style={styles.chips} accessibilityRole="radiogroup" accessibilityLabel={label}>
-      {options.map((o) => (
-        <Chip
-          key={o.value}
-          label={o.label}
-          role="radio"
-          selected={value === o.value}
-          onPress={() => onChange(value === o.value ? null : o.value)}
-        />
-      ))}
+    <View style={{ gap: 6 }}>
+      <View
+        style={styles.chips}
+        accessibilityRole="radiogroup"
+        accessibilityLabel={label}
+        aria-invalid={!!error}>
+        {options.map((o) => (
+          <Chip
+            key={o.value}
+            label={o.label}
+            role="radio"
+            selected={value === o.value}
+            onPress={() => onChange(value === o.value ? null : o.value)}
+          />
+        ))}
+      </View>
+      {error ? (
+        <View style={styles.errRow} accessibilityRole="alert">
+          <Icon name="alert-circle" size={14} color={p.danger} />
+          <AppText variant="small" color={p.danger} style={{ flex: 1 }}>
+            {error}
+          </AppText>
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -275,29 +292,42 @@ export function RadioList<T extends string>({
   value,
   onChange,
   icons,
+  error,
 }: {
   options: readonly (ChoiceOption<T> & { icon?: IconName; tone?: Tone; info?: string })[];
   value: T | null | undefined;
   onChange: (v: T) => void;
   icons?: boolean;
+  error?: string;
 }) {
+  const { p } = useTokens();
   const [openInfo, setOpenInfo] = useState<T | null>(null);
   const motion = useMotion();
   return (
-    <View style={{ gap: 10 }} accessibilityRole="radiogroup">
-      {options.map((o) => (
-        <Animated.View key={o.value} style={{ gap: 10 }} layout={motion.glide}>
-          <OptionRow
-            label={o.label}
-            selected={value === o.value}
-            onPress={() => onChange(o.value)}
-            icon={icons ? o.icon : undefined}
-            tone={o.tone}
-            onInfo={o.info ? () => setOpenInfo(openInfo === o.value ? null : o.value) : undefined}
-          />
-          {o.info && (openInfo === o.value || value === o.value) ? <InfoNote text={o.info} title={o.label} /> : null}
-        </Animated.View>
-      ))}
+    <View style={{ gap: 10 }}>
+      <View style={{ gap: 10 }} accessibilityRole="radiogroup" aria-invalid={!!error}>
+        {options.map((o) => (
+          <Animated.View key={o.value} style={{ gap: 10 }} layout={motion.glide}>
+            <OptionRow
+              label={o.label}
+              selected={value === o.value}
+              onPress={() => onChange(o.value)}
+              icon={icons ? o.icon : undefined}
+              tone={o.tone}
+              onInfo={o.info ? () => setOpenInfo(openInfo === o.value ? null : o.value) : undefined}
+            />
+            {o.info && (openInfo === o.value || value === o.value) ? <InfoNote text={o.info} title={o.label} /> : null}
+          </Animated.View>
+        ))}
+      </View>
+      {error ? (
+        <View style={styles.errRow} accessibilityRole="alert">
+          <Icon name="alert-circle" size={14} color={p.danger} />
+          <AppText variant="small" color={p.danger} style={{ flex: 1 }}>
+            {error}
+          </AppText>
+        </View>
+      ) : null}
     </View>
   );
 }

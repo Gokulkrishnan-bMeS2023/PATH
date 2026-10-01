@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Text } from 'react-native';
 import { Redirect, router } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { Screen } from '@/components/ui/screen';
@@ -22,6 +23,7 @@ import {
   YES_NO_UNSURE,
   problemById,
 } from '@/lib/content';
+import { useTokens } from '@/theme/use-tokens';
 
 /** 04C / 04D · Problem-specific questions (step 3 of 3) */
 export default function InterviewDetails() {
@@ -29,8 +31,10 @@ export default function InterviewDetails() {
   const { user } = useAuth();
   const { refresh } = useCase();
   const { draft, updateAnswers, reset } = useInterview();
+  const { p } = useTokens();
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [deniedReasonError, setDeniedReasonError] = useState('');
   const a = draft.answers;
 
   if (!draft.problem) return <Redirect href="/problem-selection" />;
@@ -38,6 +42,10 @@ export default function InterviewDetails() {
 
   const create = async () => {
     if (!user) return;
+    if (draft.problem === 'denied' && !a.deniedReason) {
+      setDeniedReasonError('Please choose the stated reason.');
+      return;
+    }
     setSaving(true);
     setError('');
     try {
@@ -58,7 +66,11 @@ export default function InterviewDetails() {
       right="Step 3 of 3"
       bottom={
         <Row>
-          <Button icon="arrow-left" label="Back" onPress={() => router.back()} />
+          <Button
+            icon="arrow-left"
+            label="Back"
+            onPress={() => (router.canGoBack() ? router.back() : router.replace('/interview/card'))}
+          />
           <Button variant="primary" icon="zap" label="Create My Action Plan" loading={saving} onPress={create} />
         </Row>
       }>
@@ -68,8 +80,20 @@ export default function InterviewDetails() {
       {draft.problem === 'denied' ? (
         <>
           <AppText variant="tag">Path · Denied by insurance</AppText>
-          <AppText variant="h1">Do you know the stated reason?</AppText>
-          <RadioList icons options={DENIED_REASONS} value={a.deniedReason} onChange={(v) => updateAnswers({ deniedReason: v })} />
+          <AppText variant="h1">
+            Do you know the stated reason?
+            <Text style={{ color: p.danger }}> *</Text>
+          </AppText>
+          <RadioList
+            icons
+            options={DENIED_REASONS}
+            value={a.deniedReason}
+            onChange={(v) => {
+              updateAnswers({ deniedReason: v });
+              setDeniedReasonError('');
+            }}
+            error={deniedReasonError}
+          />
 
           <AppText variant="h2">Did you receive a notice?</AppText>
           <ChipSelect options={YES_NO_UNSURE} value={a.noticeReceived} onChange={(v) => updateAnswers({ noticeReceived: v ?? undefined })} />
@@ -128,7 +152,11 @@ export default function InterviewDetails() {
         </Card>
       ) : null}
 
-      <AppText variant="small">All questions are optional — answer what you know.</AppText>
+      <AppText variant="small">
+        {draft.problem === 'denied'
+          ? 'The stated reason is required. The rest is optional — answer what you know.'
+          : 'All questions are optional — answer what you know.'}
+      </AppText>
     </Screen>
   );
 }

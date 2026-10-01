@@ -123,7 +123,7 @@ export default function ProfileScreen() {
       <AppText variant="label">I am using this app as a…</AppText>
       <RadioList
         icons
-        options={ROLE_OPTIONS}
+        options={ROLE_OPTIONS.filter((r) => r.value !== 'both')}
         value={role}
         onChange={(v) => {
           setRole(v);

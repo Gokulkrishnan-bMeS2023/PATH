@@ -12,7 +12,7 @@ import {
 import Animated from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { router } from 'expo-router';
+import { router, useNavigation } from 'expo-router';
 import { AppText } from '@/components/ui/text';
 import { Icon } from '@/components/ui/icon';
 import { Chip } from '@/components/ui/form';
@@ -149,8 +149,15 @@ function BottomBar({ children }: { children: React.ReactNode }) {
 }
 
 export function MenuChip() {
+  const navigation = useNavigation();
   return (
-    <Chip tone="bar" icon="menu" label="Menu" accessibilityLabel="Open menu" onPress={() => router.push('/menu')} />
+    <Chip
+      tone="bar"
+      icon="menu"
+      label="Menu"
+      accessibilityLabel="Open menu"
+      onPress={() => navigation.dispatch({ type: 'OPEN_DRAWER' })}
+    />
   );
 }
 

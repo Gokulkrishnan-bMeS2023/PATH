@@ -1,7 +1,7 @@
 import React from 'react';
-import { View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { router, type Href } from 'expo-router';
-import { Screen } from '@/components/ui/screen';
+import { DrawerContentScrollView, type DrawerContentComponentProps } from 'expo-router/drawer';
 import { AppText } from '@/components/ui/text';
 import { Button } from '@/components/ui/button';
 import { Chip } from '@/components/ui/form';
@@ -10,24 +10,26 @@ import { AccessibilityControls } from '@/components/accessibility-controls';
 import { useAuth } from '@/context/auth-context';
 import { useCase } from '@/context/case-context';
 import { ROLE_LABEL } from '@/lib/content';
+import { useTokens } from '@/theme/use-tokens';
 
-/** Leave the menu, then open the chosen screen in its place. */
-function go(href: Href) {
-  if (router.canGoBack()) router.back();
-  router.push(href);
-}
-
-/** 14 · Menu */
-export default function MenuScreen() {
+/** Content of the real drawer navigator opened by the hamburger "Menu" chip. */
+export function DrawerMenuContent({ navigation }: DrawerContentComponentProps) {
   const { user } = useAuth();
   const { data: activeCase } = useCase();
-  const close = () => (router.canGoBack() ? router.back() : router.replace(activeCase ? '/plan' : '/problem-selection'));
+  const { p } = useTokens();
+
+  const go = (href: Href) => {
+    navigation.closeDrawer();
+    router.push(href);
+  };
 
   return (
-    <Screen
-      left={{ kind: 'brand' }}
-      menu={false}
-      right={<Chip tone="bar" icon="x" label="Close" accessibilityLabel="Close menu" onPress={close} />}>
+    <DrawerContentScrollView contentContainerStyle={[styles.body, { backgroundColor: p.bg }]}>
+      <View style={styles.header}>
+        <AppText variant="h2">Menu</AppText>
+        <Chip icon="x" label="Close" accessibilityLabel="Close menu" onPress={() => navigation.closeDrawer()} />
+      </View>
+
       {user ? (
         <Card>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
@@ -58,8 +60,12 @@ export default function MenuScreen() {
       </Section>
       <Section title="Start Another Medication Case" icon="plus-circle" tone="green" onPress={() => go('/problem-selection')} />
 
-      <View style={{ flexGrow: 1, minHeight: 8 }} />
       <Button icon="log-out" label="Log Out" onPress={() => go('/logout')} />
-    </Screen>
+    </DrawerContentScrollView>
   );
 }
+
+const styles = StyleSheet.create({
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  body: { padding: 16, gap: 16 },
+});
