@@ -24,7 +24,28 @@ SplashScreen.preventAutoHideAsync();
 
 const PUBLIC_ROUTES = new Set(['welcome', 'login', 'register', 'forgot-password']);
 
-function RootNavigator({ fontsReady }: { fontsReady: boolean }) {
+const APP_FONTS = {
+  IBMPlexSans_400Regular,
+  IBMPlexSans_400Regular_Italic,
+  IBMPlexSans_500Medium,
+  IBMPlexSans_600SemiBold,
+  IBMPlexSans_700Bold,
+  IBMPlexMono_400Regular,
+  IBMPlexMono_500Medium,
+  IBMPlexMono_600SemiBold,
+};
+
+/**
+ * Fonts are loaded here, below <DatabaseProvider>, on purpose: expo-sqlite's
+ * SQLiteProvider is memoized and ignores `children` changes, so state held
+ * above it (e.g. "fonts loaded") never reaches this component. That kept the
+ * native app stuck on the splash screen.
+ */
+function RootNavigator() {
+  const [fontsLoaded, fontError] = useFonts(APP_FONTS);
+  // Web swaps @font-face fonts in when ready, so only native waits for them.
+  // If fonts fail to load we still render with system fallbacks.
+  const fontsReady = fontsLoaded || !!fontError || Platform.OS === 'web';
   const { user, isLoading } = useAuth();
   const { data: activeCase, loading: caseLoading } = useCase();
   const router = useRouter();
@@ -68,17 +89,6 @@ function RootNavigator({ fontsReady }: { fontsReady: boolean }) {
 }
 
 export default function RootLayout() {
-  const [fontsLoaded, fontError] = useFonts({
-    IBMPlexSans_400Regular,
-    IBMPlexSans_400Regular_Italic,
-    IBMPlexSans_500Medium,
-    IBMPlexSans_600SemiBold,
-    IBMPlexSans_700Bold,
-    IBMPlexMono_400Regular,
-    IBMPlexMono_500Medium,
-    IBMPlexMono_600SemiBold,
-  });
-
   return (
     <SafeAreaProvider>
       <DatabaseProvider>
@@ -86,9 +96,7 @@ export default function RootLayout() {
           <AuthProvider>
             <CaseProvider>
               <InterviewProvider>
-                {/* Web swaps @font-face fonts in when ready, so only native waits for them.
-                    If fonts fail to load we still render with system fallbacks. */}
-                <RootNavigator fontsReady={fontsLoaded || !!fontError || Platform.OS === 'web'} />
+                <RootNavigator />
               </InterviewProvider>
             </CaseProvider>
           </AuthProvider>

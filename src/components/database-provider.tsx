@@ -22,6 +22,11 @@ if (Platform.OS === 'web' && typeof navigator !== 'undefined' && navigator.stora
   navigator.storage.persist().catch(() => {});
 }
 
+/**
+ * Opens the app database. Note: expo-sqlite's SQLiteProvider is memoized and
+ * ignores changes to `children`, so never pass changing props/state *through*
+ * this provider — keep state in components rendered below it.
+ */
 export function DatabaseProvider({ children }: { children: React.ReactNode }) {
   const [error, setError] = useState<Error | null>(webUnsupported);
 
