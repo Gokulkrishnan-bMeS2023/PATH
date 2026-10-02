@@ -94,18 +94,23 @@ const MAX_STAGGER_STEPS = 8;
 
 type Keyed = { key: string; el: React.ReactElement };
 
-/** Flattens fragments so their children stay direct flex children (and keep the body's `gap`). */
+/**
+ * Flattens fragments so their children stay direct flex children (and keep the body's `gap`).
+ * Keys come from `Children.toArray`, which scopes them the way React does (".$id" for explicit
+ * keys, ".1" for positions, ".3:$id" inside mapped arrays), so a contact with id 1 can't collide
+ * with the unkeyed sibling at index 1.
+ */
 function flattenChildren(children: React.ReactNode, prefix = ''): Keyed[] {
   const out: Keyed[] = [];
-  React.Children.forEach(children, (child, i) => {
-    if (!React.isValidElement(child)) return;
-    const key = `${prefix}${child.key ?? i}`;
+  for (const child of React.Children.toArray(children)) {
+    if (!React.isValidElement(child)) continue;
+    const key = `${prefix}${child.key}`;
     if (child.type === React.Fragment) {
-      out.push(...flattenChildren((child.props as { children?: React.ReactNode }).children, `${key}.`));
+      out.push(...flattenChildren((child.props as { children?: React.ReactNode }).children, `${key}/`));
     } else {
       out.push({ key, el: child });
     }
-  });
+  }
   return out;
 }
 

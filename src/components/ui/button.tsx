@@ -4,7 +4,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { AppText } from '@/components/ui/text';
 import { Icon, type IconName } from '@/components/ui/icon';
 import { AnimatedPressable, usePressScale } from '@/components/ui/motion';
-import { Fonts, Radius } from '@/theme/tokens';
+import { Fonts, Radius, toneColors, type Tone } from '@/theme/tokens';
 import { useTokens } from '@/theme/use-tokens';
 
 type Props = {
@@ -15,6 +15,8 @@ type Props = {
   trailingIcon?: IconName;
   /** `danger` is a solid red fill; `danger-outline` is a red outline (e.g. Log Out). */
   variant?: 'primary' | 'secondary' | 'ghost' | 'danger' | 'danger-outline';
+  /** Border, text and icon colour for `secondary` / `ghost` buttons. Defaults to teal; `neutral` is grey (e.g. Cancel). */
+  tone?: Tone | 'neutral';
   size?: 'md' | 'sm';
   disabled?: boolean;
   loading?: boolean;
@@ -29,6 +31,7 @@ export function Button({
   icon,
   trailingIcon,
   variant = 'secondary',
+  tone,
   size = 'md',
   disabled,
   loading,
@@ -41,7 +44,8 @@ export function Button({
   const isGhost = variant === 'ghost';
   const isDanger = variant === 'danger';
   const isDangerOutline = variant === 'danger-outline';
-  const accent = isDanger || isDangerOutline ? p.coral : p.primary;
+  const accent =
+    isDanger || isDangerOutline ? p.coral : tone === 'neutral' ? p.muted : tone ? toneColors(p, tone).fg : p.primary;
   const fg = isPrimary || isDanger ? '#FFFFFF' : accent;
   const iconSize = size === 'sm' ? 16 : 18;
   const minHeight = size === 'sm' ? 44 : 48;

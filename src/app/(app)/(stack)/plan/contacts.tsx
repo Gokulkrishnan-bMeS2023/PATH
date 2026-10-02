@@ -17,6 +17,12 @@ import type { Contact, ContactKind, RefKind } from '@/types/case';
 
 const ICON = { doctor: 'activity', insurance: 'shield', pharmacy: 'package', assistance: 'heart', other: 'user' } as const;
 const TONE = { doctor: 'teal', insurance: 'sky', pharmacy: 'purple', assistance: 'green', other: 'sun' } as const;
+/**
+ * Outline buttons coloured by meaning (wireframe round 2): purple = phone calls, blue = information,
+ * teal = main action, green = done, coral = needs attention, grey = cancel. Call / Website keep full colour
+ * even when there's no number or site yet.
+ */
+const NO_FADE = { opacity: 1 } as const;
 
 type FieldDef = { key: keyof ContactFields; label: string; phone?: boolean; secret?: boolean; multiline?: boolean };
 
@@ -153,11 +159,11 @@ export default function ContactsScreen() {
           </>
         )}
         <Row gap={8}>
-          <Button size="sm" icon="phone" label="Call" accessibilityLabel={`Call ${c?.name || CONTACT_KIND_LABEL[kind]}`} disabled={!c?.phone} onPress={() => c?.phone && callNumber(c.phone)} />
+          <Button size="sm" tone="purple" icon="phone" label="Call" accessibilityLabel={`Call ${c?.name || CONTACT_KIND_LABEL[kind]}`} disabled={!c?.phone} style={NO_FADE} onPress={() => c?.phone && callNumber(c.phone)} />
           {kind === 'assistance' || kind === 'other' ? (
-            <Button size="sm" icon="external-link" label="Website" accessibilityLabel={`Website for ${c?.name || CONTACT_KIND_LABEL[kind]}`} disabled={!c?.website} onPress={() => c?.website && openWebsite(c.website)} />
+            <Button size="sm" tone="sky" icon="external-link" label="Website" accessibilityLabel={`Website for ${c?.name || CONTACT_KIND_LABEL[kind]}`} disabled={!c?.website} style={NO_FADE} onPress={() => c?.website && openWebsite(c.website)} />
           ) : null}
-          <Button size="sm" icon={c ? 'edit-2' : 'plus'} label={c ? 'Edit' : 'Add'} accessibilityLabel={`${c ? 'Edit' : 'Add'} ${CONTACT_KIND_LABEL[kind].toLowerCase()}`} onPress={() => setEditing({ kind, id: c?.id ?? null })} />
+          <Button size="sm" tone="teal" icon={c ? 'edit-2' : 'plus'} label={c ? 'Edit' : 'Add'} accessibilityLabel={`${c ? 'Edit' : 'Add'} ${CONTACT_KIND_LABEL[kind].toLowerCase()}`} onPress={() => setEditing({ kind, id: c?.id ?? null })} />
         </Row>
       </Card>
     );
@@ -193,7 +199,12 @@ export default function ContactsScreen() {
           }}
         />
       ) : (
-        <Button icon="user-plus" label="Add Other Contact" onPress={() => setEditing({ kind: 'other', id: null })} />
+        <Button
+          tone="teal"
+          icon="user-plus"
+          label="Add Other Contact"
+          onPress={() => setEditing({ kind: 'other', id: null })}
+        />
       )}
 
       <Section title="Important numbers" icon="hash" tone="purple" defaultOpen={refs.length > 0}>
@@ -202,10 +213,11 @@ export default function ContactsScreen() {
             <View key={kind} style={{ gap: 8 }}>
               <Field label={label} value={refValue} maxLength={40} autoFocus onChangeText={setRefValue} />
               <Row>
-                <Button size="sm" label="Cancel" onPress={() => setEditingRef(null)} />
+                <Button size="sm" tone="neutral" icon="x" label="Cancel" onPress={() => setEditingRef(null)} />
                 <Button
                   size="sm"
-                  variant="primary"
+                  tone="green"
+                  icon="save"
                   label="Save"
                   onPress={async () => {
                     await mutate((db, caseId) => setRefNumber(db, caseId, kind, refValue));
@@ -283,10 +295,10 @@ function ContactEditor({
         );
       })}
       <Row>
-        <Button size="sm" label="Cancel" onPress={onCancel} />
+        <Button size="sm" tone="neutral" icon="x" label="Cancel" onPress={onCancel} />
         <Button
           size="sm"
-          variant="primary"
+          tone="green"
           icon="save"
           label="Save"
           loading={saving}
@@ -300,7 +312,7 @@ function ContactEditor({
           }}
         />
       </Row>
-      {onDelete ? <Button size="sm" variant="ghost" icon="trash-2" label="Remove Contact" onPress={onDelete} /> : null}
+      {onDelete ? <Button size="sm" variant="danger-outline" icon="trash-2" label="Remove Contact" onPress={onDelete} /> : null}
     </Card>
   );
 }
