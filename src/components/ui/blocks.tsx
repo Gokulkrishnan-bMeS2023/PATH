@@ -316,12 +316,13 @@ export function BrandArt({ height = 150 }: { height?: number }) {
 }
 
 /** Success check badge with a soft green ring (".badge"). */
-export function SuccessBadge({ icon = 'check' }: { icon?: IconName }) {
+export function SuccessBadge({ icon = 'check', tone = 'green' }: { icon?: IconName; tone?: Tone }) {
   const { p } = useTokens();
   const motion = useMotion();
+  const c = toneColors(p, tone);
   return (
-    <Reanimated.View entering={motion.pop(150)} style={[styles.badgeRing, { backgroundColor: p.greenTint }]}>
-      <View style={[styles.badge, { backgroundColor: p.green }]}>
+    <Reanimated.View entering={motion.pop(150)} style={[styles.badgeRing, { backgroundColor: c.bg }]}>
+      <View style={[styles.badge, { backgroundColor: c.fg }]}>
         <Reanimated.View entering={motion.pop(380)}>
           <Icon name={icon} size={44} color="#FFFFFF" />
         </Reanimated.View>

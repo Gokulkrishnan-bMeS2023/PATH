@@ -26,7 +26,7 @@ export default function LogoutScreen() {
     <Screen left={{ kind: 'back' }} menu={false}>
       <View style={{ height: 12 }} />
       <View style={{ alignItems: 'center' }}>
-        <SuccessBadge icon="log-out" />
+        <SuccessBadge icon="log-out" tone="coral" />
       </View>
       <AppText variant="h1" align="center">
         Log out?
@@ -35,7 +35,7 @@ export default function LogoutScreen() {
         Your action plan, call history and reminders stay saved. Log in again to pick up where you left off.
       </AppText>
       <View style={{ height: 8 }} />
-      <Button variant="primary" icon="log-out" label="Log Out" loading={busy} onPress={confirm} />
+      <Button variant="danger" icon="log-out" label="Log Out" loading={busy} onPress={confirm} />
       <Button label="Stay Logged In" onPress={() => (router.canGoBack() ? router.back() : router.replace('/plan'))} />
     </Screen>
   );

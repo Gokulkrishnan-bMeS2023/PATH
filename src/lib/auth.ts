@@ -80,35 +80,100 @@ function rowToUser(row: UserRow): User {
   };
 }
 
+// ---------- errors ----------
+
+/** The email and/or username already belongs to another account. */
+export class AccountTakenError extends Error {
+  constructor(
+    readonly email: boolean,
+    readonly username: boolean,
+  ) {
+    super(email ? 'EMAIL_TAKEN' : 'USERNAME_TAKEN');
+  }
+}
+
+/**
+ * Like `db.runAsync`, but keeps SQLite's own error. On web, `runAsync` finalizes the
+ * failed statement in a `finally`, and that cleanup throws "Error finalizing statement",
+ * which replaces the real error (e.g. "UNIQUE constraint failed: users.email").
+ */
+async function run(db: SQLiteDatabase, source: string, ...params: (string | number)[]) {
+  const statement = await db.prepareAsync(source);
+  try {
+    return await statement.executeAsync(...params);
+  } finally {
+    await statement.finalizeAsync().catch(() => {});
+  }
+}
+
+/** Throws AccountTakenError if another account (other than `exceptId`) uses this email or username. */
+async function assertAvailable(db: SQLiteDatabase, email: string, username: string, exceptId = -1) {
+  // Both columns are COLLATE NOCASE, so these comparisons ignore case.
+  const rows = await db.getAllAsync<{ email: string; username: string }>(
+    'SELECT email, username FROM users WHERE (email = ? OR username = ?) AND id != ?',
+    email,
+    username,
+    exceptId,
+  );
+  const emailTaken = rows.some((r) => r.email.toLowerCase() === email);
+  const usernameTaken = rows.some((r) => r.username.toLowerCase() === username);
+  if (emailTaken || usernameTaken) throw new AccountTakenError(emailTaken, usernameTaken);
+}
+
+/** Maps a UNIQUE violation (e.g. two sign-ups racing) to AccountTakenError. */
+function asTakenError(err: unknown): unknown {
+  const msg = err instanceof Error ? err.message : '';
+  const email = msg.includes('UNIQUE constraint failed: users.email');
+  const username = msg.includes('UNIQUE constraint failed: users.username');
+  return email || username ? new AccountTakenError(email, username) : err;
+}
+
+/** A plain-language reason for an unexpected error while saving account details. */
+export function describeAccountError(err: unknown): string {
+  const msg = err instanceof Error ? err.message : String(err);
+  if (/disk is full|QuotaExceeded|Error code 13\b/i.test(msg)) {
+    return 'This device is out of storage space, so your details couldn’t be saved. Free up some space and try again.';
+  }
+  if (/database is locked|Error code 5\b|Access Handle|NoModificationAllowed/i.test(msg)) {
+    return 'PATH is open in another tab or window, so your details couldn’t be saved. Close the other one and try again.';
+  }
+  if (/Database not found|Failed to initialize|SharedArrayBuffer|navigator\.storage/i.test(msg)) {
+    return 'The app’s storage isn’t available right now. Reload the page or restart the app, then try again.';
+  }
+  return `Your details couldn’t be saved because of an unexpected error. Please try again. (Details: ${msg || 'unknown error'})`;
+}
+
 // ---------- auth operations ----------
 
 export async function registerUser(db: SQLiteDatabase, data: RegisterData): Promise<User> {
+  const email = data.email.toLowerCase().trim();
+  const username = data.username.toLowerCase().trim();
+  await assertAvailable(db, email, username);
+
   const salt = await generateSalt();
   const passwordHash = await hashPassword(data.password, salt);
 
+  let result;
   try {
-    const result = await db.runAsync(
+    result = await run(
+      db,
       `INSERT INTO users (first_name, last_name, email, username, password_hash, salt, role)
        VALUES (?, ?, ?, ?, ?, ?, ?)`,
       data.firstName.trim(),
       data.lastName.trim(),
-      data.email.toLowerCase().trim(),
-      data.username.toLowerCase().trim(),
+      email,
+      username,
       passwordHash,
       salt,
       data.role,
     );
-
-    const row = await db.getFirstAsync<UserRow>('SELECT * FROM users WHERE id = ?', result.lastInsertRowId);
-    if (!row) throw new Error('DB_ERROR');
-    return rowToUser(row);
   } catch (err: unknown) {
-    if (err instanceof Error && err.message.includes('UNIQUE constraint failed')) {
-      if (err.message.includes('users.email')) throw new Error('EMAIL_TAKEN');
-      if (err.message.includes('users.username')) throw new Error('USERNAME_TAKEN');
-    }
-    throw err;
+    throw asTakenError(err);
   }
+
+  const row = await db.getFirstAsync<UserRow>('SELECT * FROM users WHERE id = ?', result.lastInsertRowId);
+  if (!row) throw new Error('The new account could not be read back from storage.');
+  return rowToUser(row);
 }
 
 export async function loginUser(
@@ -140,22 +205,22 @@ export async function getUserById(db: SQLiteDatabase, id: number): Promise<User 
 export type ProfileData = Pick<User, 'firstName' | 'lastName' | 'email' | 'username' | 'role'>;
 
 export async function updateUserProfile(db: SQLiteDatabase, id: number, data: ProfileData): Promise<User> {
+  const email = data.email.toLowerCase().trim();
+  const username = data.username.toLowerCase().trim();
+  await assertAvailable(db, email, username, id);
   try {
-    await db.runAsync(
+    await run(
+      db,
       `UPDATE users SET first_name = ?, last_name = ?, email = ?, username = ?, role = ? WHERE id = ?`,
       data.firstName.trim(),
       data.lastName.trim(),
-      data.email.toLowerCase().trim(),
-      data.username.toLowerCase().trim(),
+      email,
+      username,
       data.role,
       id,
     );
   } catch (err: unknown) {
-    if (err instanceof Error && err.message.includes('UNIQUE constraint failed')) {
-      if (err.message.includes('users.email')) throw new Error('EMAIL_TAKEN');
-      if (err.message.includes('users.username')) throw new Error('USERNAME_TAKEN');
-    }
-    throw err;
+    throw asTakenError(err);
   }
   const user = await getUserById(db, id);
   if (!user) throw new Error('DB_ERROR');

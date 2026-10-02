@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Field, PasswordField, RadioList, Segmented } from '@/components/ui/form';
 import { Row, Warn } from '@/components/ui/blocks';
 import { useAuth } from '@/context/auth-context';
+import { AccountTakenError, describeAccountError } from '@/lib/auth';
 import { ROLE_OPTIONS } from '@/lib/content';
 import { LIMITS, sanitize, validators } from '@/lib/validation';
 import type { UserRole } from '@/types/auth';
@@ -50,13 +51,26 @@ export default function RegisterScreen() {
     }
     setSubmitting(true);
     try {
-      // The root layout routes signed-in users onward (to /problem-selection).
       await register({ ...form, role });
+      router.replace({ pathname: '/login', params: { created: '1' } });
     } catch (err) {
-      const msg = err instanceof Error ? err.message : '';
-      if (msg === 'EMAIL_TAKEN') setErrors((e) => ({ ...e, email: 'An account with this email already exists.' }));
-      else if (msg === 'USERNAME_TAKEN') setErrors((e) => ({ ...e, username: 'This username is already taken.' }));
-      else setSummary('Something went wrong. Please try again.');
+      if (err instanceof AccountTakenError) {
+        setErrors((e) => ({
+          ...e,
+          email: err.email ? 'An account with this email already exists.' : e.email,
+          username: err.username ? 'This username is already taken.' : e.username,
+        }));
+        setSummary(
+          err.email && err.username
+            ? 'This email and username are already used by another account. Log in instead, or choose different ones.'
+            : err.email
+              ? 'This email is already used by another account. Log in instead, or use a different email.'
+              : 'This username is already taken. Please choose a different one.',
+        );
+      } else {
+        console.error('Create account failed:', err);
+        setSummary(describeAccountError(err));
+      }
     } finally {
       setSubmitting(false);
     }
@@ -153,7 +167,7 @@ export default function RegisterScreen() {
 
       <Button variant="primary" icon="check" label="Create Account" onPress={submit} loading={submitting} />
       <AppText variant="small" align="center">
-        You’ll be logged in automatically.
+        Next, you’ll log in with your new account.
       </AppText>
     </Screen>
   );

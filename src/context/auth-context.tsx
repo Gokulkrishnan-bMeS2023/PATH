@@ -46,11 +46,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     })();
   }, [db]);
 
+  // Creates the account only — the user then logs in from the Log In screen.
   const register = useCallback(
     async (data: RegisterData) => {
-      const newUser = await registerUser(db, data);
-      await saveSession(newUser.id);
-      setUser(newUser);
+      await registerUser(db, data);
     },
     [db],
   );

@@ -13,7 +13,8 @@ type Props = {
   icon?: IconName;
   /** Icon after the label (e.g. "Next →"). */
   trailingIcon?: IconName;
-  variant?: 'primary' | 'secondary' | 'ghost';
+  /** `danger` is a solid red fill; `danger-outline` is a red outline (e.g. Log Out). */
+  variant?: 'primary' | 'secondary' | 'ghost' | 'danger' | 'danger-outline';
   size?: 'md' | 'sm';
   disabled?: boolean;
   loading?: boolean;
@@ -38,7 +39,10 @@ export function Button({
   const { p, fs, bw } = useTokens();
   const isPrimary = variant === 'primary';
   const isGhost = variant === 'ghost';
-  const fg = isPrimary ? '#FFFFFF' : p.primary;
+  const isDanger = variant === 'danger';
+  const isDangerOutline = variant === 'danger-outline';
+  const accent = isDanger || isDangerOutline ? p.coral : p.primary;
+  const fg = isPrimary || isDanger ? '#FFFFFF' : accent;
   const iconSize = size === 'sm' ? 16 : 18;
   const minHeight = size === 'sm' ? 44 : 48;
   const press = usePressScale();
@@ -82,12 +86,13 @@ export function Button({
         styles.base,
         {
           minHeight,
-          borderWidth: isGhost ? 0 : bw(2),
-          borderColor: p.primary,
-          backgroundColor: isGhost ? 'transparent' : p.surface,
+          borderWidth: isGhost ? 0 : bw(isDangerOutline ? 1.5 : 2),
+          borderColor: accent,
+          backgroundColor: isGhost ? 'transparent' : isDanger ? p.coral : p.surface,
           opacity: disabled ? 0.5 : 1,
         },
         isPrimary && styles.primaryShadow,
+        isDanger && styles.dangerShadow,
         style,
         press.style,
       ]}>
@@ -126,5 +131,12 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     shadowOffset: { width: 0, height: 4 },
     elevation: 3,
+  },
+  dangerShadow: {
+    shadowColor: '#CF3F33',
+    shadowOpacity: 0.22,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 2,
   },
 });

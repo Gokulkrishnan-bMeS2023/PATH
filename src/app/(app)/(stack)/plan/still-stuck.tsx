@@ -32,7 +32,7 @@ export default function StillStuckScreen() {
     const pr = plan.primary;
     if (pr.guide) router.push({ pathname: '/plan/guide/[kind]', params: { kind: pr.guide } });
     else if (pr.route === 'financial') router.push('/plan/financial');
-    else if (pr.route === 'terms') router.push('/plan/terms');
+    else if (pr.route === 'terms') router.push('/terms');
     else router.push('/plan/contacts');
   };
 

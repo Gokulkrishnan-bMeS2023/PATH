@@ -19,6 +19,7 @@ import { AuthProvider, useAuth } from '@/context/auth-context';
 import { CaseProvider, useCase } from '@/context/case-context';
 import { InterviewProvider } from '@/context/interview-context';
 import { DatabaseProvider } from '@/components/database-provider';
+import { AppSplash, hideSplash } from '@/components/app-splash';
 import { lightPalette } from '@/theme/tokens';
 
 SplashScreen.preventAutoHideAsync();
@@ -54,7 +55,7 @@ function RootNavigator() {
   const ready = fontsReady && !isLoading && (!user || !caseLoading);
 
   useEffect(() => {
-    if (ready) SplashScreen.hideAsync().catch(() => {});
+    if (ready) hideSplash();
   }, [ready]);
 
   // Signed-in users skip the welcome/auth screens and land on their plan.
@@ -104,6 +105,7 @@ export default function RootLayout() {
             </AuthProvider>
           </AccessibilityProvider>
         </DatabaseProvider>
+        <AppSplash />
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );

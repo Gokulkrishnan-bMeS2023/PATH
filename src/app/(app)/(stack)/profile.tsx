@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Field, PasswordField, RadioList } from '@/components/ui/form';
 import { Bubble, Card, Note, Reveal, Row, Section, Warn } from '@/components/ui/blocks';
 import { useAuth } from '@/context/auth-context';
+import { AccountTakenError, describeAccountError } from '@/lib/auth';
 import { ROLE_OPTIONS } from '@/lib/content';
 import { LIMITS, sanitize, validators } from '@/lib/validation';
 import type { UserRole } from '@/types/auth';
@@ -33,6 +34,7 @@ export default function ProfileScreen() {
   const [role, setRole] = useState<UserRole>(user?.role ?? 'patient');
   const [errors, setErrors] = useState<ProfileErrors>({});
   const [status, setStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const [saveError, setSaveError] = useState('');
 
   if (!user) return null;
 
@@ -56,10 +58,18 @@ export default function ProfileScreen() {
       await updateProfile({ ...form, role });
       setStatus('saved');
     } catch (err) {
-      const msg = err instanceof Error ? err.message : '';
-      if (msg === 'EMAIL_TAKEN') setErrors((e) => ({ ...e, email: 'An account with this email already exists.' }));
-      if (msg === 'USERNAME_TAKEN') setErrors((e) => ({ ...e, username: 'This username is already taken.' }));
-      setStatus(msg === 'EMAIL_TAKEN' || msg === 'USERNAME_TAKEN' ? 'idle' : 'error');
+      if (err instanceof AccountTakenError) {
+        setErrors((e) => ({
+          ...e,
+          email: err.email ? 'An account with this email already exists.' : e.email,
+          username: err.username ? 'This username is already taken.' : e.username,
+        }));
+        setStatus('idle');
+      } else {
+        console.error('Save profile failed:', err);
+        setSaveError(describeAccountError(err));
+        setStatus('error');
+      }
     }
   };
 
@@ -143,10 +153,10 @@ export default function ProfileScreen() {
           <Note icon="check-circle">Your profile has been saved.</Note>
         </Reveal>
       ) : null}
-      {status === 'error' ? <Warn>We couldn’t save your changes. Please try again.</Warn> : null}
+      {status === 'error' ? <Warn>{saveError}</Warn> : null}
 
       <Button variant="primary" icon="save" label="Save Changes" loading={status === 'saving'} onPress={save} />
-      <Button icon="log-out" label="Log Out" onPress={() => router.push('/logout')} />
+      <Button variant="danger-outline" icon="log-out" label="Log Out" onPress={() => router.push('/logout')} />
     </Screen>
   );
 }

@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { Platform, Text, View } from 'react-native';
 import { SQLiteProvider } from 'expo-sqlite';
-import * as SplashScreen from 'expo-splash-screen';
 import { initializeDatabase } from '@/lib/database';
+import { hideSplash } from '@/components/app-splash';
 
 // expo-sqlite on web needs SharedArrayBuffer, which requires a cross-origin-isolated
 // page (COOP/COEP headers — see metro.config.js). Without it, opening the database hangs.
@@ -49,7 +49,7 @@ export function DatabaseProvider({ children }: { children: React.ReactNode }) {
 /** Shown when the local database can't be opened (e.g. the app is open in another browser tab). */
 function DatabaseError({ error }: { error: Error }) {
   useEffect(() => {
-    SplashScreen.hideAsync().catch(() => {});
+    hideSplash();
   }, []);
   if (error === webUnsupported) {
     return (

@@ -10,6 +10,7 @@ import {
   type ViewStyle,
 } from 'react-native';
 import Animated from 'react-native-reanimated';
+import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useNavigation } from 'expo-router';
@@ -169,7 +170,9 @@ export function AppBar({ left, right }: { left: BarLeft; right?: React.ReactNode
         <View style={styles.bar}>
           {left.kind === 'brand' ? (
             <View style={styles.logo} accessibilityRole="header">
-              <View style={[styles.mark, { backgroundColor: p.warm }]} />
+              <View style={styles.mark}>
+                <Image source={require('@/assets/images/logo.png')} style={styles.markImage} contentFit="contain" />
+              </View>
               <AppText style={{ fontFamily: Fonts.sansSemiBold, fontSize: fs(14), color: '#FFFFFF' }}>PATH</AppText>
             </View>
           ) : (
@@ -226,7 +229,15 @@ const styles = StyleSheet.create({
   },
   logo: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   barRight: { flexDirection: 'row', alignItems: 'center', gap: 8, flexShrink: 1, justifyContent: 'flex-end' },
-  mark: { width: 24, height: 24, borderRadius: 12 },
+  mark: {
+    width: 30,
+    height: 30,
+    borderRadius: 8,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  markImage: { width: 24, height: 24 },
   back: { flexDirection: 'row', alignItems: 'center', gap: 4, minHeight: 44, paddingRight: 8 },
   scroll: { flexGrow: 1 },
   body: {

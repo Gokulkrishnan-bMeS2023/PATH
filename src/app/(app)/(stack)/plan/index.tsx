@@ -156,7 +156,7 @@ export default function Dashboard() {
       </Section>
 
       <AppText variant="label">More sections</AppText>
-      <Section title="Understand Insurance and Pharmacy Terms" icon="book-open" tone="teal" onPress={link('/plan/terms')} />
+      <Section title="Understand Insurance and Pharmacy Terms" icon="book-open" tone="teal" onPress={link('/terms')} />
       <Section title="Doctor Call Guide" icon="activity" tone="teal" onPress={guide('doctor')} />
       <Section title="Insurance Call Guide" icon="shield" tone="sky" onPress={guide('insurance')} />
       <Section title="Pharmacy Call Guide" icon="package" tone="purple" onPress={guide('pharmacy')} />

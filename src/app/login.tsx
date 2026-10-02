@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
 import { Pressable, View } from 'react-native';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { Screen } from '@/components/ui/screen';
 import { AppText } from '@/components/ui/text';
 import { Button } from '@/components/ui/button';
 import { Checkbox, Field, PasswordField, Segmented } from '@/components/ui/form';
-import { Warn } from '@/components/ui/blocks';
+import { Note, Warn } from '@/components/ui/blocks';
 import { useAuth } from '@/context/auth-context';
 import { Fonts } from '@/theme/tokens';
 import { useTokens } from '@/theme/use-tokens';
@@ -17,6 +17,8 @@ const MAX_PASSWORD = 64;
 export default function LoginScreen() {
   const { login } = useAuth();
   const { p, fs } = useTokens();
+  // Set by the register screen after a new account is created.
+  const { created } = useLocalSearchParams<{ created?: string }>();
   const [id, setId] = useState('');
   const [password, setPassword] = useState('');
   const [remember, setRemember] = useState(true);
@@ -59,6 +61,9 @@ export default function LoginScreen() {
       />
       <AppText variant="h1">Welcome back</AppText>
 
+      {created === '1' && !message ? (
+        <Note icon="check-circle">Your account has been created. Log in to continue.</Note>
+      ) : null}
       {message ? <Warn>{message}</Warn> : null}
 
       <Field
