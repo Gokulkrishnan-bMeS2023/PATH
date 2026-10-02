@@ -20,6 +20,7 @@ import { CaseProvider, useCase } from '@/context/case-context';
 import { InterviewProvider } from '@/context/interview-context';
 import { DatabaseProvider } from '@/components/database-provider';
 import { AppSplash, hideSplash } from '@/components/app-splash';
+import { Toaster } from '@/components/ui/toast';
 import { lightPalette } from '@/theme/tokens';
 
 SplashScreen.preventAutoHideAsync();
@@ -86,6 +87,7 @@ function RootNavigator() {
         <Stack.Screen name="forgot-password" options={{ title: 'Forgot Password' }} />
         <Stack.Screen name="(app)" />
       </Stack>
+      <Toaster />
     </>
   );
 }

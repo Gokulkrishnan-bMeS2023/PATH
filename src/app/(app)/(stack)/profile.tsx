@@ -8,6 +8,7 @@ import { Field, PasswordField, RadioList } from '@/components/ui/form';
 import { Bubble, Card, Note, Reveal, Row, Section, Warn } from '@/components/ui/blocks';
 import { useAuth } from '@/context/auth-context';
 import { AccountTakenError, describeAccountError } from '@/lib/auth';
+import { haptics } from '@/lib/haptics';
 import { ROLE_OPTIONS } from '@/lib/content';
 import { LIMITS, sanitize, validators } from '@/lib/validation';
 import type { UserRole } from '@/types/auth';
@@ -57,6 +58,7 @@ export default function ProfileScreen() {
     try {
       await updateProfile({ ...form, role });
       setStatus('saved');
+      haptics.success();
     } catch (err) {
       if (err instanceof AccountTakenError) {
         setErrors((e) => ({
@@ -184,6 +186,7 @@ function ChangePassword() {
       setNext('');
       setConfirm('');
       setStatus('saved');
+      haptics.success();
     } catch (err) {
       setErrors({
         current:

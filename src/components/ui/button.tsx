@@ -1,9 +1,11 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { ActivityIndicator, StyleSheet, View, type ViewStyle } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { AppText } from '@/components/ui/text';
 import { Icon, type IconName } from '@/components/ui/icon';
+import { Reveal, Row } from '@/components/ui/blocks';
 import { AnimatedPressable, usePressScale } from '@/components/ui/motion';
+import { haptics } from '@/lib/haptics';
 import { Fonts, Radius, toneColors, type Tone } from '@/theme/tokens';
 import { useTokens } from '@/theme/use-tokens';
 
@@ -110,6 +112,69 @@ export function Button({
       ) : null}
       {content}
     </AnimatedPressable>
+  );
+}
+
+/**
+ * A red outline button for something that can't be undone. The first tap asks
+ * `question` in place, with Keep / confirm buttons, so a slip never deletes anything.
+ */
+export function ConfirmButton({
+  label,
+  question,
+  confirmLabel = label,
+  icon = 'trash-2',
+  size = 'sm',
+  onConfirm,
+}: {
+  label: string;
+  question: string;
+  confirmLabel?: string;
+  icon?: IconName;
+  size?: 'md' | 'sm';
+  onConfirm: () => Promise<void> | void;
+}) {
+  const [asking, setAsking] = useState(false);
+  const [busy, setBusy] = useState(false);
+
+  if (!asking) {
+    return (
+      <Button
+        size={size}
+        variant="danger-outline"
+        icon={icon}
+        label={label}
+        onPress={() => {
+          haptics.warning();
+          setAsking(true);
+        }}
+      />
+    );
+  }
+  return (
+    <Reveal style={{ gap: 8 }}>
+      <AppText variant="strong" accessibilityRole="alert">
+        {question}
+      </AppText>
+      <Row gap={8}>
+        <Button size={size} tone="neutral" icon="x" label="Keep" onPress={() => setAsking(false)} />
+        <Button
+          size={size}
+          variant="danger"
+          icon={icon}
+          label={confirmLabel}
+          loading={busy}
+          onPress={async () => {
+            setBusy(true);
+            try {
+              await onConfirm();
+            } finally {
+              setBusy(false);
+            }
+          }}
+        />
+      </Row>
+    </Reveal>
   );
 }
 

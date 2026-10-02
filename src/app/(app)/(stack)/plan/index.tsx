@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Chip, InfoBadge, InfoLink } from '@/components/ui/form';
 import { Card, CardTitle, Hero, KV, Note, ProgressStep, Reveal, Row, Section, Warn } from '@/components/ui/blocks';
 import { Icon } from '@/components/ui/icon';
+import { showToast } from '@/components/ui/toast';
 import { usePlan } from '@/hooks/use-plan';
 import { CALL_GUIDES, INSURANCE_TYPES, SUPPLY_LEFT, AGE_GROUPS, describePatient, describeProblem, labelOf } from '@/lib/content';
 import { PROGRESS_LABELS } from '@/lib/plan';
@@ -51,6 +52,7 @@ export default function Dashboard() {
 
   const closeCase = async () => {
     await plan.mutate((db) => setCaseStatus(db, c.userId, c.id, 'closed'));
+    showToast('Case closed — call history is kept', 'info');
     router.replace('/problem-selection');
   };
 

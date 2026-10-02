@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
@@ -13,7 +13,7 @@ import Animated from 'react-native-reanimated';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { router, useNavigation } from 'expo-router';
+import { router, useIsFocused, useNavigation } from 'expo-router';
 import { AppText } from '@/components/ui/text';
 import { Icon } from '@/components/ui/icon';
 import { Chip } from '@/components/ui/form';
@@ -42,10 +42,52 @@ type ScreenProps = {
   menu?: boolean;
 };
 
+const ScrollIntoViewContext = createContext<(target: View | null) => void>(() => {});
+
+/**
+ * Content the screen scrolls to, so it sits just below the app bar: an inline editor
+ * when it appears, or a form further down when `trigger` changes (e.g. the id of the
+ * task whose "Edit" was tapped). A null `trigger` doesn't scroll.
+ */
+export function ScrollIntoView({
+  children,
+  trigger = 'on-mount',
+}: {
+  children: React.ReactNode;
+  trigger?: string | number | null;
+}) {
+  const ref = useRef<View>(null);
+  const scrollIntoView = useContext(ScrollIntoViewContext);
+  useEffect(() => {
+    if (trigger == null) return;
+    // Wait a frame so the new content has been laid out before measuring it.
+    const t = setTimeout(() => scrollIntoView(ref.current), 60);
+    return () => clearTimeout(t);
+  }, [trigger, scrollIntoView]);
+  return <View ref={ref}>{children}</View>;
+}
+
 export function Screen({ left = { kind: 'brand' }, right, children, bottom, footer = true, gap = 16, readAloud, menu }: ScreenProps) {
   const { p } = useTokens();
   const { user } = useAuth();
+  const { reduceMotion } = useAccessibility();
   const showMenu = menu ?? !!user;
+  const scrollRef = useRef<ScrollView>(null);
+  const bodyRef = useRef<View>(null);
+
+  const scrollIntoView = useCallback(
+    (target: View | null) => {
+      const body = bodyRef.current;
+      if (!target || !body) return;
+      // The body starts at the top of the scroll content, so offsets inside it are scroll positions.
+      target.measureLayout(
+        body,
+        (_x, y) => scrollRef.current?.scrollTo({ y: Math.max(0, y - 12), animated: !reduceMotion }),
+        () => {},
+      );
+    },
+    [reduceMotion],
+  );
 
   const rightSlot =
     right || readAloud || showMenu ? (
@@ -68,11 +110,14 @@ export function Screen({ left = { kind: 'brand' }, right, children, bottom, foot
       <SafeAreaView edges={['left', 'right', 'bottom']} style={{ flex: 1 }}>
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
           <ScrollView
+            ref={scrollRef}
             contentContainerStyle={styles.scroll}
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}>
-            <View style={[styles.body, { gap }]}>
-              <Staggered>{children}</Staggered>
+            <View ref={bodyRef} style={[styles.body, { gap }]}>
+              <ScrollIntoViewContext.Provider value={scrollIntoView}>
+                <Staggered>{children}</Staggered>
+              </ScrollIntoViewContext.Provider>
             </View>
             {footer ? (
               <View style={[styles.foot, { borderTopColor: p.border }]}>
@@ -116,12 +161,16 @@ function flattenChildren(children: React.ReactNode, prefix = ''): Keyed[] {
 
 /**
  * Screen content rises into place one block after another ("rise" in the wireframe).
- * Blocks that appear later (errors, expanded panels) rise without delay, and
- * siblings glide to their new positions instead of jumping.
+ * Blocks that appear later (errors, expanded panels) rise without delay, removed
+ * blocks fade out instead of vanishing (a card swapped for its editor cross-fades),
+ * and siblings glide to their new positions instead of jumping.
  */
 function Staggered({ children }: { children: React.ReactNode }) {
   const motion = useMotion();
   const [settled, setSettled] = useState(false);
+  // A screen being closed loses focus first; without this its blocks would all fade out
+  // and it would leave as a blank page. (Reanimated's skipExiting is a no-op on web.)
+  const focused = useIsFocused();
 
   useEffect(() => {
     const t = setTimeout(() => setSettled(true), 700);
@@ -134,6 +183,7 @@ function Staggered({ children }: { children: React.ReactNode }) {
       <Animated.View
         key={key}
         entering={motion.rise(settled ? 0 : Math.min(index, MAX_STAGGER_STEPS) * STAGGER_MS)}
+        exiting={focused ? motion.fadeOut : undefined}
         layout={motion.glide}
         style={grow ? { flexGrow: grow } : undefined}>
         {el}

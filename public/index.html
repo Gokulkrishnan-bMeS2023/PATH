@@ -22,6 +22,12 @@
         height: 100%;
         flex: 1;
       }
+      /* The closed menu drawer waits just off the right edge. Clip it so focusing a field
+         (or any scroll-into-view) can't slide the whole app sideways and reveal it. */
+      #root {
+        overflow: hidden;
+        overflow: clip;
+      }
     </style>
     <!-- Logo splash painted before the JavaScript loads. <AppSplash>
          (src/components/app-splash.tsx) looks the same and removes this once its own logo is drawn. -->

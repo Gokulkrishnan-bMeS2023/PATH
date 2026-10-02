@@ -5,6 +5,7 @@ import { AppText } from '@/components/ui/text';
 import { Button } from '@/components/ui/button';
 import { Checkbox, ChipSelect, Field } from '@/components/ui/form';
 import { Row, Warn } from '@/components/ui/blocks';
+import { showToast } from '@/components/ui/toast';
 import { usePlan } from '@/hooks/use-plan';
 import { CALL_STATUSES, CONTACT_KINDS, RESPONSIBLE } from '@/lib/content';
 import { dateError, maskDateInput, parseUSDate, toUSDate, todayISO } from '@/lib/dates';
@@ -98,6 +99,7 @@ export default function RecordCallScreen() {
           });
         }
       });
+      showToast('Call saved — your plan is updated');
       router.dismissTo('/plan');
     } catch {
       setSaving(false);

@@ -5,6 +5,7 @@ import { AppText } from '@/components/ui/text';
 import { Button } from '@/components/ui/button';
 import { ChipMulti, RadioList } from '@/components/ui/form';
 import { Note, Warn } from '@/components/ui/blocks';
+import { showToast } from '@/components/ui/toast';
 import { usePlan } from '@/hooks/use-plan';
 import { BARRIERS, RECEIVED_OPTIONS, WEEKLY_CHANGES } from '@/lib/content';
 import { shortDate } from '@/lib/dates';
@@ -30,7 +31,10 @@ export default function CheckInScreen() {
     try {
       await mutate((db, caseId) => addCheckIn(db, caseId, { received, barrier: received === 'no' ? barrier : null, changes }));
       if (received === 'yes' || received === 'not_needed') router.replace('/plan/success');
-      else router.dismissTo('/plan');
+      else {
+        showToast('Check-in saved — your next step is updated');
+        router.dismissTo('/plan');
+      }
     } finally {
       setSaving(false);
     }

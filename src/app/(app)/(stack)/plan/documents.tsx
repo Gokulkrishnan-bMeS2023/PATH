@@ -6,10 +6,12 @@ import { Screen } from '@/components/ui/screen';
 import { AppText } from '@/components/ui/text';
 import { Button } from '@/components/ui/button';
 import { Chip, RadioList } from '@/components/ui/form';
-import { Bubble, Card, Row, Warn } from '@/components/ui/blocks';
+import { Bubble, Card, Reveal, Row, Warn } from '@/components/ui/blocks';
+import { showToast } from '@/components/ui/toast';
 import { usePlan } from '@/hooks/use-plan';
 import { DOC_KINDS } from '@/lib/content';
 import { shortDate } from '@/lib/dates';
+import { haptics } from '@/lib/haptics';
 import { addDocument, deleteDocument } from '@/lib/repo/activity';
 import type { DocKind } from '@/types/case';
 
@@ -32,6 +34,7 @@ export default function DocumentsScreen() {
       if (res.canceled || !res.assets?.length) return;
       const a = res.assets[0];
       await mutate((db, caseId) => addDocument(db, caseId, { kind, name: a.name, uri: a.uri, mimeType: a.mimeType ?? '' }));
+      showToast(`${labelOf(kind)} added`);
     } catch {
       setError('We couldn’t add that document. Please try again.');
     } finally {
@@ -66,23 +69,36 @@ export default function DocumentsScreen() {
               </AppText>
             </View>
             {confirmDelete !== d.id ? (
-              <Chip label="Delete" onPress={() => setConfirmDelete(d.id)} accessibilityLabel={`Delete ${d.name}`} />
+              <Chip
+                label="Delete"
+                onPress={() => {
+                  haptics.warning();
+                  setConfirmDelete(d.id);
+                }}
+                accessibilityLabel={`Delete ${d.name}`}
+              />
             ) : null}
           </View>
           {confirmDelete === d.id ? (
-            <Row>
-              <Button size="sm" label="Keep" onPress={() => setConfirmDelete(null)} />
-              <Button
-                size="sm"
-                variant="primary"
-                icon="trash-2"
-                label="Delete"
-                onPress={async () => {
-                  await mutate((db, caseId) => deleteDocument(db, caseId, d.id));
-                  setConfirmDelete(null);
-                }}
-              />
-            </Row>
+            <Reveal style={{ gap: 8 }}>
+              <AppText variant="strong" accessibilityRole="alert">
+                Delete this {labelOf(d.kind).toLowerCase()} from the app?
+              </AppText>
+              <Row>
+                <Button size="sm" tone="neutral" icon="x" label="Keep" onPress={() => setConfirmDelete(null)} />
+                <Button
+                  size="sm"
+                  variant="danger"
+                  icon="trash-2"
+                  label="Delete"
+                  onPress={async () => {
+                    await mutate((db, caseId) => deleteDocument(db, caseId, d.id));
+                    setConfirmDelete(null);
+                    showToast(`${labelOf(d.kind)} deleted`, 'info');
+                  }}
+                />
+              </Row>
+            </Reveal>
           ) : null}
         </Card>
       ))}

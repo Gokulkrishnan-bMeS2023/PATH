@@ -1,14 +1,16 @@
 import React, { useState } from 'react';
 import { View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
-import { Screen } from '@/components/ui/screen';
+import { Screen, ScrollIntoView } from '@/components/ui/screen';
 import { AppText } from '@/components/ui/text';
-import { Button } from '@/components/ui/button';
+import { Button, ConfirmButton } from '@/components/ui/button';
 import { Checkbox, Chip, ChipSelect, Field } from '@/components/ui/form';
 import { Card, Note, Row, Warn } from '@/components/ui/blocks';
+import { showToast } from '@/components/ui/toast';
 import { usePlan } from '@/hooks/use-plan';
 import { REMIND_LABEL, REMIND_OFFSET_DAYS, REMIND_OPTIONS } from '@/lib/content';
 import { addDaysISO, dateError, maskDateInput, parseUSDate, shortDate, toUSDate, todayISO } from '@/lib/dates';
+import { haptics } from '@/lib/haptics';
 import { deleteTask, saveTask, setTaskDone } from '@/lib/repo/activity';
 import { callNumber, openWebsite } from '@/lib/phone';
 import { useTokens } from '@/theme/use-tokens';
@@ -71,12 +73,8 @@ export default function RemindersScreen() {
   );
   const [errors, setErrors] = useState<{ title?: string; due?: string; reminder?: string }>({});
   const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
 
-  const set = <K extends keyof Form>(key: K, value: Form[K]) => {
-    setForm((f) => ({ ...f, [key]: value }));
-    setSaved(false);
-  };
+  const set = <K extends keyof Form>(key: K, value: Form[K]) => setForm((f) => ({ ...f, [key]: value }));
 
   const today = todayISO();
 
@@ -121,7 +119,7 @@ export default function RemindersScreen() {
       );
       setForm(emptyForm());
       setEditingId(null);
-      setSaved(true);
+      showToast(editingId ? 'Changes saved' : 'Task saved');
     } finally {
       setSaving(false);
     }
@@ -184,14 +182,16 @@ export default function RemindersScreen() {
                 onPress={() => {
                   setEditingId(t.id);
                   setForm(fromTask(t));
-                  setSaved(false);
                 }}
               />
               <Button
                 size="sm"
                 icon={t.done ? 'rotate-ccw' : 'check'}
                 label={t.done ? 'Undo' : 'Mark done'}
-                onPress={() => mutate((db, caseId) => setTaskDone(db, caseId, t.id, !t.done))}
+                onPress={() => {
+                  if (!t.done) haptics.success();
+                  return mutate((db, caseId) => setTaskDone(db, caseId, t.id, !t.done));
+                }}
               />
             </Row>
             {contactAction(t)}
@@ -199,9 +199,10 @@ export default function RemindersScreen() {
         );
       })}
 
-      {saved ? <Note icon="check-circle">Task saved.</Note> : null}
-
-      <AppText variant="h2">{editingId ? 'Edit task' : 'Add a task'}</AppText>
+      {/* "Edit" on a task card scrolls down to this form. */}
+      <ScrollIntoView trigger={editingId}>
+        <AppText variant="h2">{editingId ? 'Edit task' : 'Add a task'}</AppText>
+      </ScrollIntoView>
       <Field label="Task name" required placeholder="e.g. Call insurance" maxLength={100} value={form.title} onChangeText={(v) => set('title', v)} error={errors.title} />
       <Field label="Organization / contact" placeholder="Who" maxLength={80} value={form.organization} onChangeText={(v) => set('organization', v)} />
       <Field label="Phone or website" placeholder="Phone or URL" autoCapitalize="none" maxLength={120} value={form.phoneOrUrl} onChangeText={(v) => set('phoneOrUrl', v)} />
@@ -256,26 +257,29 @@ export default function RemindersScreen() {
       {errors.title || errors.due || errors.reminder ? <Warn>Please fix the highlighted fields.</Warn> : null}
       <Button variant="primary" icon="save" label={editingId ? 'Save Changes' : 'Save Task'} loading={saving} onPress={save} />
       {editingId ? (
-        <Row>
+        <>
           <Button
             size="sm"
+            tone="neutral"
+            icon="x"
             label="Cancel Edit"
             onPress={() => {
               setEditingId(null);
               setForm(emptyForm());
             }}
           />
-          <Button
-            size="sm"
-            icon="trash-2"
+          <ConfirmButton
             label="Delete Task"
-            onPress={async () => {
+            question={`Delete “${form.title.trim() || 'this task'}”? This can’t be undone.`}
+            confirmLabel="Delete"
+            onConfirm={async () => {
               await mutate((db, caseId) => deleteTask(db, caseId, editingId));
               setEditingId(null);
               setForm(emptyForm());
+              showToast('Task deleted', 'info');
             }}
           />
-        </Row>
+        </>
       ) : null}
       <AppText variant="small">
         Only enter deadlines given to you by your insurer, a notice, your clinician, pharmacy or assistance program. The

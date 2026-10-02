@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Pressable, StyleSheet, TextInput, View, type TextInputProps } from 'react-native';
 import Animated from 'react-native-reanimated';
 import { AppText } from '@/components/ui/text';
 import { Icon, type IconName } from '@/components/ui/icon';
 import { Bubble } from '@/components/ui/blocks';
 import { AnimatedPressable, useColorTransition, useMotion, usePressScale } from '@/components/ui/motion';
+import { haptics } from '@/lib/haptics';
 import { Fonts, Radius, type Tone } from '@/theme/tokens';
 import { useTokens } from '@/theme/use-tokens';
 
@@ -22,10 +23,19 @@ type FieldProps = TextInputProps & {
   flex?: boolean;
 };
 
-export function Field({ label, error, required, multiline, trailing, flex, style, ...input }: FieldProps) {
+export function Field({ label, error, required, multiline, trailing, flex, style, autoFocus, ...input }: FieldProps) {
   const { p, fs, bw } = useTokens();
   const [focused, setFocused] = useState(false);
   const motion = useMotion();
+  const inputRef = useRef<TextInput>(null);
+
+  // Plain `autoFocus` is a no-op on web inside an entering animation (Reanimated keeps the new
+  // block `visibility: hidden` for a frame), so focus once the block — and any scroll to it — has settled.
+  useEffect(() => {
+    if (!autoFocus) return;
+    const t = setTimeout(() => inputRef.current?.focus(), 350);
+    return () => clearTimeout(t);
+  }, [autoFocus]);
   // Focus ring cross-fades; an error keeps the border red in both states.
   const focusStyle = useColorTransition(
     focused,
@@ -41,6 +51,7 @@ export function Field({ label, error, required, multiline, trailing, flex, style
       </AppText>
       <View style={styles.inrow}>
         <AnimatedTextInput
+          ref={inputRef}
           placeholderTextColor={p.placeholder}
           multiline={multiline}
           aria-label={label}
@@ -157,7 +168,10 @@ export function Chip({ label, selected, onPress, tone = 'default', icon, accessi
   if (!onPress) return <Animated.View style={[chipStyle, colors]}>{body}</Animated.View>;
   return (
     <AnimatedPressable
-      onPress={onPress}
+      onPress={() => {
+        if (role !== 'button') haptics.select();
+        onPress();
+      }}
       onPressIn={press.onPressIn}
       onPressOut={press.onPressOut}
       accessibilityRole={role}
@@ -264,7 +278,10 @@ export function OptionRow({ label, selected, onPress, icon, tone = 'teal', onInf
   const press = usePressScale(0.98);
   return (
     <AnimatedPressable
-      onPress={onPress}
+      onPress={() => {
+        if (!selected) haptics.select();
+        onPress();
+      }}
       onPressIn={press.onPressIn}
       onPressOut={press.onPressOut}
       accessibilityRole="radio"
@@ -362,7 +379,10 @@ export function Checkbox({
   const press = usePressScale(0.97);
   return (
     <AnimatedPressable
-      onPress={() => onChange(!checked)}
+      onPress={() => {
+        haptics.select();
+        onChange(!checked);
+      }}
       onPressIn={press.onPressIn}
       onPressOut={press.onPressOut}
       accessibilityRole="checkbox"

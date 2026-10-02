@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import { Pressable, View } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
-import { Screen } from '@/components/ui/screen';
+import { Screen, ScrollIntoView } from '@/components/ui/screen';
 import { AppText } from '@/components/ui/text';
-import { Button } from '@/components/ui/button';
+import { Button, ConfirmButton } from '@/components/ui/button';
 import { Field, PasswordField } from '@/components/ui/form';
 import { Card, CardTitle, KV, Row, Section } from '@/components/ui/blocks';
+import { showToast } from '@/components/ui/toast';
 import { usePlan } from '@/hooks/use-plan';
 import { CONTACT_KIND_LABEL, REF_KINDS, SUPPORT_RESOURCES } from '@/lib/content';
 import { maskMiddle } from '@/lib/dates';
@@ -17,12 +18,6 @@ import type { Contact, ContactKind, RefKind } from '@/types/case';
 
 const ICON = { doctor: 'activity', insurance: 'shield', pharmacy: 'package', assistance: 'heart', other: 'user' } as const;
 const TONE = { doctor: 'teal', insurance: 'sky', pharmacy: 'purple', assistance: 'green', other: 'sun' } as const;
-/**
- * Outline buttons coloured by meaning (wireframe round 2): purple = phone calls, blue = information,
- * teal = main action, green = done, coral = needs attention, grey = cancel. Call / Website keep full colour
- * even when there's no number or site yet.
- */
-const NO_FADE = { opacity: 1 } as const;
 
 type FieldDef = { key: keyof ContactFields; label: string; phone?: boolean; secret?: boolean; multiline?: boolean };
 
@@ -68,7 +63,8 @@ const FIELDS: Record<ContactKind, FieldDef[]> = {
   ],
 };
 
-type Editing = { kind: ContactKind; id: number | null } | null;
+/** Which contact is being edited, and which field gets the cursor when the form opens. */
+type Editing = { kind: ContactKind; id: number | null; focus?: keyof ContactFields } | null;
 
 /** 09 · Additional support & my contacts */
 export default function ContactsScreen() {
@@ -76,10 +72,11 @@ export default function ContactsScreen() {
   const { contacts, refs, mutate } = usePlan();
   const { p, fs } = useTokens();
 
+  // `edit` comes from the "Add … Phone" buttons on the plan and call guides.
   const initialEditing = (): Editing => {
     if (edit !== 'doctor' && edit !== 'pharmacy' && edit !== 'insurance' && edit !== 'assistance') return null;
     const existing = contacts.find((c) => c.kind === edit);
-    return { kind: edit, id: existing?.id ?? null };
+    return { kind: edit, id: existing?.id ?? null, focus: 'phone' };
   };
   const [editing, setEditing] = useState<Editing>(initialEditing);
   const [editingRef, setEditingRef] = useState<RefKind | null>(null);
@@ -96,74 +93,127 @@ export default function ContactsScreen() {
     const isPlaceholder = 'placeholder' in item;
     const c = isPlaceholder ? null : item;
     const kind = item.kind;
+    const label = CONTACT_KIND_LABEL[kind];
     if (editing && editing.kind === kind && editing.id === (c?.id ?? null)) {
       return (
-        <ContactEditor
-          key={`edit-${kind}-${c?.id ?? 'new'}`}
-          kind={kind}
-          contact={c}
-          onCancel={() => setEditing(null)}
-          onSave={async (fields) => {
-            await mutate((db, caseId) => (c ? updateContact(db, caseId, c.id, fields) : addContact(db, caseId, kind, fields)));
-            setEditing(null);
-          }}
-          onDelete={
-            c && (kind === 'other' || kind === 'assistance')
-              ? async () => {
-                  await mutate((db, caseId) => deleteContact(db, caseId, c.id));
-                  setEditing(null);
-                }
-              : undefined
-          }
-        />
+        <ScrollIntoView key={`edit-${kind}-${c?.id ?? 'new'}`}>
+          <ContactEditor
+            kind={kind}
+            contact={c}
+            focus={editing.focus}
+            onCancel={() => setEditing(null)}
+            onSave={async (fields) => {
+              await mutate((db, caseId) => (c ? updateContact(db, caseId, c.id, fields) : addContact(db, caseId, kind, fields)));
+              setEditing(null);
+              showToast(`${fields.name || label} saved`);
+            }}
+            onDelete={
+              c && (kind === 'other' || kind === 'assistance')
+                ? async () => {
+                    await mutate((db, caseId) => deleteContact(db, caseId, c.id));
+                    setEditing(null);
+                    showToast(`${c.name || label} removed`, 'info');
+                  }
+                : undefined
+            }
+          />
+        </ScrollIntoView>
       );
     }
+
+    // Nothing saved yet: one line and one button instead of a card full of dashes.
+    if (!c) {
+      return (
+        <Card key={`${kind}-${index}`}>
+          <CardTitle icon={ICON[kind]} tone={TONE[kind]} tag={label} />
+          <AppText>No {label.toLowerCase()} saved yet.</AppText>
+          <Button
+            size="sm"
+            tone="teal"
+            icon="plus"
+            label={`Add ${label}`}
+            onPress={() => setEditing({ kind, id: null })}
+          />
+        </Card>
+      );
+    }
+
+    const call = c.phone ? () => callNumber(c.phone) : undefined;
     return (
-      <Card key={c ? c.id : `${kind}-${index}`}>
-        <CardTitle icon={ICON[kind]} tone={TONE[kind]} tag={CONTACT_KIND_LABEL[kind]} />
+      <Card key={c.id}>
+        <CardTitle icon={ICON[kind]} tone={TONE[kind]} tag={label} />
         {kind === 'doctor' ? (
           <>
-            <KV k="Name" v={c?.name} />
-            <KV k="Contact person" v={c?.contactPerson} />
-            <KV k="Phone · ext." v={c?.phone ? `${c.phone}${c.extension ? ` · ${c.extension}` : ''}` : ''} />
-            <KV k="Portal / website" v={c?.website} />
-            <KV k="Notes" v={c?.notes} />
+            <KV k="Name" v={c.name} />
+            <KV k="Contact person" v={c.contactPerson} />
+            <KV k="Phone · ext." v={c.phone ? `${c.phone}${c.extension ? ` · ${c.extension}` : ''}` : ''} onPress={call} />
+            <KV k="Portal / website" v={c.website} />
+            <KV k="Notes" v={c.notes} />
           </>
         ) : kind === 'pharmacy' ? (
           <>
-            <KV k="Name" v={c?.name} />
-            <KV k="Phone" v={c?.phone} />
-            <KV k="Pharmacist / contact" v={c?.contactPerson} />
-            <KV k="Address (optional)" v={c?.address} />
+            <KV k="Name" v={c.name} />
+            <KV k="Phone" v={c.phone} onPress={call} />
+            <KV k="Pharmacist / contact" v={c.contactPerson} />
+            <KV k="Address (optional)" v={c.address} />
           </>
         ) : kind === 'insurance' ? (
           <>
-            <KV k="Company · plan" v={[c?.name, c?.plan].filter(Boolean).join(' · ')} />
-            <KV k="Member services" v={c?.phone} />
-            <KV k="Pharmacy benefit" v={c?.pharmacyBenefitPhone} />
-            <KV k="Member ID" v={c?.memberId ? maskMiddle(c.memberId) : ''} mono />
-            <KV k="Group" v={c?.groupNumber} />
+            <KV k="Company · plan" v={[c.name, c.plan].filter(Boolean).join(' · ')} />
+            <KV k="Member services" v={c.phone} onPress={call} />
+            <KV
+              k="Pharmacy benefit"
+              v={c.pharmacyBenefitPhone}
+              onPress={c.pharmacyBenefitPhone ? () => callNumber(c.pharmacyBenefitPhone) : undefined}
+            />
+            <KV k="Member ID" v={c.memberId ? maskMiddle(c.memberId) : ''} mono />
+            <KV k="Group" v={c.groupNumber} />
           </>
         ) : kind === 'assistance' ? (
           <>
-            <KV k="Program" v={c?.name} />
-            <KV k="Phone" v={c?.phone} />
-            <KV k="Case number" v={c?.caseNumber} mono />
+            <KV k="Program" v={c.name} />
+            <KV k="Phone" v={c.phone} onPress={call} />
+            <KV k="Case number" v={c.caseNumber} mono />
           </>
         ) : (
           <>
-            <KV k="Name" v={c?.name} />
-            <KV k="Contact person" v={c?.contactPerson} />
-            <KV k="Phone" v={c?.phone} />
-            <KV k="Notes" v={c?.notes} />
+            <KV k="Name" v={c.name} />
+            <KV k="Contact person" v={c.contactPerson} />
+            <KV k="Phone" v={c.phone} onPress={call} />
+            <KV k="Notes" v={c.notes} />
           </>
         )}
+        {/* Outline buttons coloured by meaning (wireframe round 2): purple = phone calls,
+            blue = information, teal = main action. A missing number or site becomes "Add …". */}
         <Row gap={8}>
-          <Button size="sm" tone="purple" icon="phone" label="Call" accessibilityLabel={`Call ${c?.name || CONTACT_KIND_LABEL[kind]}`} disabled={!c?.phone} style={NO_FADE} onPress={() => c?.phone && callNumber(c.phone)} />
+          <Button
+            size="sm"
+            tone="purple"
+            icon={c.phone ? 'phone' : 'plus'}
+            label={c.phone ? 'Call' : 'Add Phone'}
+            accessibilityLabel={c.phone ? `Call ${c.name || label}` : `Add a phone number for ${c.name || label}`}
+            onPress={call ?? (() => setEditing({ kind, id: c.id, focus: 'phone' }))}
+          />
           {kind === 'assistance' || kind === 'other' ? (
-            <Button size="sm" tone="sky" icon="external-link" label="Website" accessibilityLabel={`Website for ${c?.name || CONTACT_KIND_LABEL[kind]}`} disabled={!c?.website} style={NO_FADE} onPress={() => c?.website && openWebsite(c.website)} />
+            <Button
+              size="sm"
+              tone="sky"
+              icon={c.website ? 'external-link' : 'plus'}
+              label={c.website ? 'Website' : 'Add Website'}
+              accessibilityLabel={c.website ? `Website for ${c.name || label}` : `Add a website for ${c.name || label}`}
+              onPress={
+                c.website ? () => openWebsite(c.website) : () => setEditing({ kind, id: c.id, focus: 'website' })
+              }
+            />
           ) : null}
-          <Button size="sm" tone="teal" icon={c ? 'edit-2' : 'plus'} label={c ? 'Edit' : 'Add'} accessibilityLabel={`${c ? 'Edit' : 'Add'} ${CONTACT_KIND_LABEL[kind].toLowerCase()}`} onPress={() => setEditing({ kind, id: c?.id ?? null })} />
+          <Button
+            size="sm"
+            tone="teal"
+            icon="edit-2"
+            label="Edit"
+            accessibilityLabel={`Edit ${label.toLowerCase()}`}
+            onPress={() => setEditing({ kind, id: c.id })}
+          />
         </Row>
       </Card>
     );
@@ -189,17 +239,21 @@ export default function ContactsScreen() {
       {cards.map(renderCard)}
 
       {editing && editing.kind === 'other' && editing.id === null ? (
-        <ContactEditor
-          kind="other"
-          contact={null}
-          onCancel={() => setEditing(null)}
-          onSave={async (fields) => {
-            await mutate((db, caseId) => addContact(db, caseId, 'other', fields));
-            setEditing(null);
-          }}
-        />
+        <ScrollIntoView key="edit-other-new">
+          <ContactEditor
+            kind="other"
+            contact={null}
+            onCancel={() => setEditing(null)}
+            onSave={async (fields) => {
+              await mutate((db, caseId) => addContact(db, caseId, 'other', fields));
+              setEditing(null);
+              showToast(`${fields.name || 'Contact'} added`);
+            }}
+          />
+        </ScrollIntoView>
       ) : (
         <Button
+          key="add-other"
           tone="teal"
           icon="user-plus"
           label="Add Other Contact"
@@ -222,6 +276,7 @@ export default function ContactsScreen() {
                   onPress={async () => {
                     await mutate((db, caseId) => setRefNumber(db, caseId, kind, refValue));
                     setEditingRef(null);
+                    showToast(`${label} saved`);
                   }}
                 />
               </Row>
@@ -256,12 +311,15 @@ export default function ContactsScreen() {
 function ContactEditor({
   kind,
   contact,
+  focus,
   onSave,
   onCancel,
   onDelete,
 }: {
   kind: ContactKind;
   contact: Contact | null;
+  /** Field that gets the cursor when the form opens; defaults to the first one. */
+  focus?: keyof ContactFields;
   onSave: (fields: ContactFields) => Promise<void>;
   onCancel: () => void;
   onDelete?: () => Promise<void>;
@@ -270,6 +328,7 @@ function ContactEditor({
     Object.fromEntries(FIELDS[kind].map((f) => [f.key, contact ? contact[f.key] : ''])),
   );
   const [saving, setSaving] = useState(false);
+  const focusKey = focus && FIELDS[kind].some((f) => f.key === focus) ? focus : FIELDS[kind][0].key;
 
   return (
     <Card>
@@ -279,6 +338,7 @@ function ContactEditor({
           label: f.label,
           value: String(values[f.key] ?? ''),
           maxLength: f.multiline ? 1000 : 120,
+          autoFocus: f.key === focusKey,
           onChangeText: (v: string) =>
             setValues((s) => ({ ...s, [f.key]: f.phone ? v.replace(/[^0-9()\-\s+]/g, '') : v })),
         };
@@ -312,7 +372,14 @@ function ContactEditor({
           }}
         />
       </Row>
-      {onDelete ? <Button size="sm" variant="danger-outline" icon="trash-2" label="Remove Contact" onPress={onDelete} /> : null}
+      {onDelete ? (
+        <ConfirmButton
+          label="Remove Contact"
+          question={`Remove ${contact?.name || 'this contact'} from My Contacts?`}
+          confirmLabel="Remove"
+          onConfirm={onDelete}
+        />
+      ) : null}
     </Card>
   );
 }
