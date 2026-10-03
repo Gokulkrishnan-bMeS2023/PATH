@@ -48,9 +48,10 @@ export function DrawerMenuContent({ navigation }: DrawerContentComponentProps) {
       <Section title="My Action Plan" icon="clipboard" tone="sky" onPress={() => goPlan('/plan')} />
       <Section title="Deadlines and Reminders" icon="calendar" tone="sun" onPress={() => goPlan('/plan/reminders')} />
       <Section title="My Contacts" icon="users" tone="purple" onPress={() => goPlan('/plan/contacts')} />
+      <Section title="Documents" icon="file-text" tone="sky" onPress={() => goPlan('/plan/documents')} />
       <Section title="Insurance and Pharmacy Terms" icon="book-open" tone="teal" onPress={() => go('/terms')} />
       <Section title="Accessibility" icon="accessibility" tone="sky">
-        <AccessibilityControls readAloudText="Menu. My Profile, My Action Plan, Deadlines and Reminders, My Contacts, Insurance and Pharmacy Terms, Accessibility, Start Another Medication Case, Log Out." />
+        <AccessibilityControls readAloudText="Menu. My Profile, My Action Plan, Deadlines and Reminders, My Contacts, Documents, Insurance and Pharmacy Terms, Accessibility, Start Another Medication Case, Log Out." />
       </Section>
       <Section title="Start Another Medication Case" icon="plus" tone="green" onPress={() => go('/problem-selection')} />
 

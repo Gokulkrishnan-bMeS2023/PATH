@@ -169,6 +169,8 @@ export interface CaseDocument {
   name: string;
   uri: string;
   mimeType: string;
+  /** Who the document is for, when it isn't the case's own patient (e.g. another family member). */
+  personName: string;
   createdAt: string;
 }
 

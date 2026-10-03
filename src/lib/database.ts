@@ -150,6 +150,10 @@ const MIGRATIONS: string[] = [
     PRIMARY KEY (case_id, resource_id)
   );
   `,
+  // 3 — who a document belongs to, when it's not the case's own patient
+  `
+  ALTER TABLE documents ADD COLUMN person_name TEXT NOT NULL DEFAULT '';
+  `,
 ];
 
 export async function initializeDatabase(db: SQLiteDatabase): Promise<void> {

@@ -4,13 +4,12 @@ import { router, type Href } from 'expo-router';
 import { Screen } from '@/components/ui/screen';
 import { AppText } from '@/components/ui/text';
 import { Button } from '@/components/ui/button';
-import { Chip, InfoBadge, InfoLink } from '@/components/ui/form';
-import { Card, CardTitle, Hero, KV, Note, ProgressStep, Reveal, Row, Section, Warn } from '@/components/ui/blocks';
+import { InfoBadge, InfoLink } from '@/components/ui/form';
+import { Card, CardTitle, Hero, KV, Note, Reveal, Row, Section, Warn } from '@/components/ui/blocks';
 import { Icon } from '@/components/ui/icon';
 import { showToast } from '@/components/ui/toast';
 import { usePlan } from '@/hooks/use-plan';
 import { CALL_GUIDES, INSURANCE_TYPES, SUPPLY_LEFT, AGE_GROUPS, describePatient, describeProblem, labelOf } from '@/lib/content';
-import { PROGRESS_LABELS } from '@/lib/plan';
 import { callNumber } from '@/lib/phone';
 import { setCaseStatus } from '@/lib/repo/cases';
 import { shortDate } from '@/lib/dates';
@@ -20,7 +19,7 @@ import { useTokens } from '@/theme/use-tokens';
 export default function Dashboard() {
   const plan = usePlan();
   const { p } = useTokens();
-  const { medCase: c, next, progress, status, due, contactOf, whose } = plan;
+  const { medCase: c, next, status, due, contactOf, whose } = plan;
   const [moreDetails, setMoreDetails] = useState(false);
   const [showWhy, setShowWhy] = useState(false);
   const [confirmClose, setConfirmClose] = useState(false);
@@ -57,8 +56,6 @@ export default function Dashboard() {
   };
 
   const link = (href: Href) => () => router.push(href);
-  const guide = (kind: 'doctor' | 'insurance' | 'pharmacy') => () =>
-    router.push({ pathname: '/plan/guide/[kind]', params: { kind } });
 
 
   return (
@@ -150,38 +147,6 @@ export default function Dashboard() {
           <Button size="sm" label="Open Reminders" onPress={link('/plan/reminders')} />
         </Card>
       ) : null}
-
-      <Section title="Progress" icon="trending-up" tone="green" defaultOpen>
-        {PROGRESS_LABELS.map((label, i) => (
-          <ProgressStep key={label} label={label} state={progress[i]} />
-        ))}
-      </Section>
-
-      <AppText variant="label">More sections</AppText>
-      <Section title="Understand Insurance and Pharmacy Terms" icon="book-open" tone="teal" onPress={link('/terms')} />
-      <Section title="Doctor Call Guide" icon="activity" tone="teal" onPress={guide('doctor')} />
-      <Section title="Insurance Call Guide" icon="shield" tone="sky" onPress={guide('insurance')} />
-      <Section title="Pharmacy Call Guide" icon="package" tone="purple" onPress={guide('pharmacy')} />
-      <Section
-        title="Record a Call / Call History"
-        icon="phone"
-        tone="green"
-        onPress={link('/plan/calls')}
-        right={plan.calls.length ? <AppText variant="small">{plan.calls.length}</AppText> : null}
-      />
-      <Section
-        title="Deadlines and Reminders"
-        icon="calendar"
-        tone="coral"
-        onPress={link('/plan/reminders')}
-        right={due.length ? <Chip tone="due" label={`${due.length} due`} /> : null}
-      />
-      <Section title="Financial Assistance Resources" icon="dollar-sign" tone="sun" onPress={link('/plan/financial')} />
-      <Section title="Additional Support Resources" icon="life-buoy" tone="sky" onPress={link('/plan/contacts')} />
-      <Section title="My Contacts" icon="users" tone="purple" onPress={link('/plan/contacts')} />
-      <Section title="Documents, Optional" icon="file-text" tone="sky" onPress={link('/plan/documents')} />
-      <Section title="Weekly Check-In" icon="check-square" tone="green" onPress={link('/plan/check-in')} />
-      <Section title="I Still Can’t Get the Medication" icon="alert-octagon" tone="coral" onPress={link('/plan/still-stuck')} />
 
       {confirmClose ? (
         <Card>

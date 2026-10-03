@@ -264,6 +264,7 @@ export async function listDocuments(db: SQLiteDatabase, caseId: number): Promise
     name: string;
     uri: string;
     mime_type: string;
+    person_name: string;
     created_at: string;
   }>('SELECT * FROM documents WHERE case_id = ? ORDER BY id DESC', caseId);
   return rows.map((r) => ({
@@ -273,6 +274,7 @@ export async function listDocuments(db: SQLiteDatabase, caseId: number): Promise
     name: r.name,
     uri: r.uri,
     mimeType: r.mime_type,
+    personName: r.person_name,
     createdAt: r.created_at,
   }));
 }
@@ -280,15 +282,16 @@ export async function listDocuments(db: SQLiteDatabase, caseId: number): Promise
 export async function addDocument(
   db: SQLiteDatabase,
   caseId: number,
-  d: { kind: DocKind; name: string; uri: string; mimeType: string },
+  d: { kind: DocKind; name: string; uri: string; mimeType: string; personName?: string },
 ) {
   await db.runAsync(
-    'INSERT INTO documents (case_id, kind, name, uri, mime_type) VALUES (?, ?, ?, ?, ?)',
+    'INSERT INTO documents (case_id, kind, name, uri, mime_type, person_name) VALUES (?, ?, ?, ?, ?, ?)',
     caseId,
     d.kind,
     d.name,
     d.uri,
     d.mimeType,
+    d.personName ?? '',
   );
 }
 
