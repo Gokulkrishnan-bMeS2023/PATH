@@ -7,6 +7,9 @@
     "icon": "./assets/images/icon.png",
     "scheme": "path",
     "userInterfaceStyle": "automatic",
+    "ios": {
+      "bundleIdentifier": "in.bmesolutions.path"
+    },
     "android": {
       "package": "in.bmesolutions.path",
       "versionCode": 1,

@@ -1,0 +1,63 @@
+# Builds an unsigned iOS .ipa on a GitHub macOS runner (no Mac or Apple
+# Developer account needed). The .ipa must be signed before it can be
+# installed, e.g. with Sideloadly and a free Apple ID (re-sign every 7 days).
+#
+# Run it from GitHub: Actions tab > "iOS unsigned IPA" > Run workflow.
+# It also runs automatically when this file changes.
+name: iOS unsigned IPA
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - .github/workflows/ios-unsigned-ipa.yml
+
+jobs:
+  build:
+    # SDK 57 needs Xcode 26.4+; macos-26 defaults to Xcode 26.6.
+    runs-on: macos-26
+    timeout-minutes: 60
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate iOS project
+        run: npx expo prebuild --platform ios
+
+      - name: Build app without code signing
+        run: |
+          WORKSPACE=$(ls -d ios/*.xcworkspace | head -1)
+          SCHEME=$(basename "$WORKSPACE" .xcworkspace)
+          xcodebuild \
+            -workspace "$WORKSPACE" \
+            -scheme "$SCHEME" \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath ios/build \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            build
+
+      - name: Package .ipa
+        run: |
+          APP=$(find ios/build/Build/Products/Release-iphoneos -maxdepth 1 -name '*.app' | head -1)
+          mkdir -p ipa/Payload
+          cp -R "$APP" ipa/Payload/
+          cd ipa && zip -qry "../PATH-unsigned.ipa" Payload
+
+      - uses: actions/upload-artifact@v7
+        with:
+          path: PATH-unsigned.ipa
+          archive: false
+          retention-days: 7
+          if-no-files-found: error
