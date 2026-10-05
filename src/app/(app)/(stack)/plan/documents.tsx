@@ -5,7 +5,7 @@ import * as DocumentPicker from 'expo-document-picker';
 import { Screen } from '@/components/ui/screen';
 import { AppText } from '@/components/ui/text';
 import { Button } from '@/components/ui/button';
-import { Chip, Field, RadioList, Segmented } from '@/components/ui/form';
+import { Chip, Field, Segmented } from '@/components/ui/form';
 import { Bubble, Card, Reveal, Row, Warn } from '@/components/ui/blocks';
 import { showToast } from '@/components/ui/toast';
 import { usePlan } from '@/hooks/use-plan';
@@ -23,21 +23,14 @@ export default function DocumentsScreen() {
   const mineLabel = medCase.whoFor === 'other' ? medCase.patientName || 'The Patient' : 'My Documents';
 
   const [forWhom, setForWhom] = useState<For>('mine');
-  const [kind, setKind] = useState<DocKind>('denial_letter');
   const [docName, setDocName] = useState('');
-  const [personName, setPersonName] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<number | null>(null);
 
   const upload = async () => {
     setError('');
-    const otherName = personName.trim();
     const typedName = docName.trim();
-    if (forWhom === 'other' && !otherName) {
-      setError('Enter the person’s name before uploading.');
-      return;
-    }
     if (!typedName) {
       setError('Enter a name for the document before uploading.');
       return;
@@ -52,11 +45,11 @@ export default function DocumentsScreen() {
       const a = res.assets[0];
       await mutate((db, caseId) =>
         addDocument(db, caseId, {
-          kind,
+          kind: 'other',
           name: typedName,
           uri: a.uri,
           mimeType: a.mimeType ?? '',
-          personName: forWhom === 'other' ? otherName : '',
+          personName: forWhom === 'other' ? 'other' : '',
         }),
       );
       showToast(`${typedName} added`);
@@ -71,7 +64,9 @@ export default function DocumentsScreen() {
   const labelOf = (k: DocKind) => DOC_KINDS.find((d) => d.value === k)?.label ?? 'Document';
   const iconOf = (k: DocKind) => DOC_KINDS.find((d) => d.value === k)?.icon ?? 'file';
 
-  const visibleDocs = documents.filter((d) => (forWhom === 'other' ? !!d.personName : !d.personName));
+  const visibleDocs = documents
+    .filter((d) => (forWhom === 'other' ? !!d.personName : !d.personName))
+    .sort((a, b) => (a.name || labelOf(a.kind)).localeCompare(b.name || labelOf(b.kind), undefined, { sensitivity: 'base' }));
 
   return (
     <Screen left={{ kind: 'back' }}>
@@ -86,14 +81,15 @@ export default function DocumentsScreen() {
         value={forWhom}
         onChange={setForWhom}
       />
-      {forWhom === 'other' ? (
-        <Reveal>
-          <Field label="Person’s name" value={personName} onChangeText={setPersonName} autoFocus />
-        </Reveal>
-      ) : null}
 
       <Row>
-        <Field label="Document name" value={docName} onChangeText={setDocName} flex />
+        <Field
+          label="Document name"
+          placeholder={forWhom === 'other' ? 'Name- Document type' : undefined}
+          value={docName}
+          onChangeText={setDocName}
+          flex
+        />
         <View style={{ flex: 1, justifyContent: 'flex-end' }}>
           <Button variant="primary" icon="plus" label="Add" loading={busy} onPress={upload} />
         </View>
@@ -107,7 +103,6 @@ export default function DocumentsScreen() {
               <AppText variant="h2">{d.name || labelOf(d.kind)}</AppText>
               <AppText variant="small" numberOfLines={1}>
                 {labelOf(d.kind)} · Added {shortDate(d.createdAt)}
-                {d.personName ? ` · For ${d.personName}` : ''}
               </AppText>
             </View>
             {confirmDelete !== d.id ? (
@@ -144,8 +139,6 @@ export default function DocumentsScreen() {
           ) : null}
         </Card>
       ))}
-
-      <RadioList icons options={DOC_KINDS.map((d) => ({ ...d, tone: 'sky' as const }))} value={kind} onChange={setKind} />
 
       {error ? <Warn>{error}</Warn> : null}
 
